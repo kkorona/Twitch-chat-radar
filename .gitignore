@@ -1,0 +1,10 @@
+*.txt
+*.lnk
+data/
+__pycache__/
+*.hwp
+*.png
+*.xls
+*.tsv
+*.xlsx
+*.url
