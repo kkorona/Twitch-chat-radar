@@ -79,7 +79,7 @@ def main():
                         chatLimit = userChatCount[resVal[i]['uname']]
 
                     disformed = hp.disform(resVal[i]['content'])
-                    scoreData.append(hp.getScore(disformed)[0])
+                    scoreData.append(hp.getScore(resVal[i]['content'])[0])
                     if not userName in userChatData:
                         userChatData[userName] = {}
                         for contentKey in contentKeyList:

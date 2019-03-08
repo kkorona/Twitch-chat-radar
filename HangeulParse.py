@@ -4,7 +4,8 @@ import math
 import dictCheck
 
 contentKeyList = ['complete','son','mom','alpha','special','number','etc']
-contentWeight = dict(zip(contentKeyList, [17,-3,-3,2,2,0,-10]))
+contentKeyWeight = [17,-3,-3,2,2,0,-10]
+contentWeight = dict(zip(contentKeyList, contentKeyWeight))
 
 completeToken = r'[가-힣]'
 sonToken = r'[ㄱ-ㅎ]'
@@ -41,9 +42,13 @@ def symbolize(targetString):
 def getScore(targetString):
     targetObj = disform(targetString)
     ret1 = 0.0
-    ret2 = 100
+    ret2 = 0
     ret1 += targetObj['1mer'] + targetObj['2mer']
-    ret2 += len(targetObj['son']) * contentWeight['son'] + len(targetObj['mom']) * contentWeight['mom'] + len(targetObj['etc']) * contentWeight['etc']
+    for myKey in contentKeyList:
+        if contentWeight[myKey] < 0:
+            ret2 += len(targetObj[myKey])
+        else:
+            ret2 += contentWeight[myKey] * len(targetObj[myKey])
     return (ret1,ret2)
     
 

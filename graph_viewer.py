@@ -10,19 +10,20 @@ import numpy as np
 import ChattyParser
 import HangeulParse
 import random
+import math
 
 CONTENT_PATH = "D:\\Twitch-chat-radar\\data\\log_contents\\"
 LOG_PATH = "D:\\Twitch-chat-radar\\data\\logs\\"
 SCORE_WARNING_LIMIT = 0
 BAN_WARNING_LIMIT = 0
-AXIS_LIMIT = 100
+AXIS_LIMIT = 200
 
-Point = namedtuple("Point",("kmerScore","leetScore"))
+Point = namedtuple("Point",("kmerScore","lengthScore"))
 matplotlib.use("TkAgg")
 myplot = None
 fig = None
-Color = namedtuple("Color",("lightblue", "lightred"))
-mycolor = Color('#8DD3C7', '#FFED6F')
+Color = namedtuple("Color",("recent", "abnormal"))
+mycolor = Color('#8DD3C7', '#FF4444')
 
 plt.style.use('dark_background')
 
@@ -51,35 +52,38 @@ def init_points(streamer, date):
         lastLogIndex = i
         val = HangeulParse.getScore(log[i]['content'])
         kmerVal = val[0]
-        leetVal = val[1]
+        lengthVal = math.log(val[1])
         idVal = log[i]['uname']
         if idVal in points:
             oldPoint = points.get(idVal)
-            kmerVal = (kmerVal + oldPoint.kmerScore * 0.9) / 2
-            leetVal = (leetVal + oldPoint.leetScore * 0.9) / 2
-        newPoint = Point(kmerScore=kmerVal, leetScore=leetVal)
+            kmerVal = (kmerVal * 0.1 + oldPoint.kmerScore * 0.9)
+            lengthVal = (lengthVal * 0.1 + oldPoint.lengthScore * 0.9)
+        newPoint = Point(kmerScore=kmerVal, lengthScore=lengthVal)
         points[idVal] = newPoint
     return points
 
 
 def create_plt(target_plot, points):
-    row = []
-    col = []
+    recent_row = []
+    recent_col = []
+    old_row = []
+    old_col = []
     warn_row = []
     warn_col = []
     for userID in points:
         point = points.get(userID)
         x = point.kmerScore
-        y = point.leetScore
+        y = point.lengthScore
         if x >= SCORE_WARNING_LIMIT and y >= BAN_WARNING_LIMIT:
-            row.append(x)
-            col.append(y)
+            recent_row.append(x)
+            recent_col.append(y)
         else:
             warn_row.append(x)
             warn_col.append(y)
     
-    target_plot.plot(row,col,'o',color=mycolor.lightblue, markersize = 2)
-    target_plot.plot(warn_row,warn_col,'o',color=mycolor.lightred, markersize = 2)
+    target_plot.plot(recent_row,recent_col,'o',color=mycolor.recent, markersize = 2)
+    target_plot.plot(old_row,old_col,'o',color=mycolor.old, markersize = 2)
+    target_plot.plot(warn_row,warn_col,'o',color=mycolor.abnormal, markersize = 2)
 
 
 def show_plt(target_plot):
@@ -147,13 +151,13 @@ def update_plt(diff):
         lastLogIndex = i
         val = HangeulParse.getScore(log[i]['content'])
         kmerVal = val[0]
-        leetVal = val[1]
+        lengthVal = val[1]
         idVal = log[i]['uname']
         if idVal in points:
             oldPoint = points.get(idVal)
-            kmerVal = (kmerVal + oldPoint.kmerScore * 0.9) / 2
-            leetVal = (leetVal + oldPoint.leetScore * 0.9) / 2
-        newPoint = Point(kmerScore=kmerVal, leetScore=leetVal)
+            kmerVal = (kmerVal + oldPoint.kmerScore * 0.9) 
+            lengthVal = (lengthVal + oldPoint.lengthScore * 0.9)
+        newPoint = Point(kmerScore=kmerVal, lengthScore=lengthVal)
         points[idVal] = newPoint
 
     recentTime = str(log[lastLogIndex]['hour']) + ':' + str(log[lastLogIndex]['minute']) + ':' + str(log[lastLogIndex]['second'])

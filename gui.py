@@ -37,8 +37,8 @@ NAME_WIDTH = 5
 count = 0
 
 tempNum = 1000
-tempDate = "2019-01-16"
-tempStreamer = "zilioner"
+tempDate = "2019-01-24"
+tempStreamer = "lol_ambition"
 tempTime = "17:01:54"
 diff = 0
 
@@ -236,7 +236,7 @@ def viewInit(window):
     viewFrame=tk.Frame(window, relief="solid",bd=1)
     viewFrame.grid(row=2, column=0, sticky=tk.N+tk.E+tk.W+tk.S)
 
-    axisvalues = ["Perfection","Harass","Bans","IsDonation"]
+    axisvalues = ["k-mer Score", ""]
 
     label = tk.Label(viewFrame,text="X axis")
     label.grid(row=0, column = 0)
