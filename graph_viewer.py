@@ -18,12 +18,12 @@ SCORE_WARNING_LIMIT = 0
 BAN_WARNING_LIMIT = 0
 AXIS_LIMIT = 200
 
-Point = namedtuple("Point",("kmerScore","lengthScore"))
+Point = namedtuple("Point",("kmerScore","karmaScore"))
 matplotlib.use("TkAgg")
 myplot = None
 fig = None
-Color = namedtuple("Color",("recent", "abnormal"))
-mycolor = Color('#8DD3C7', '#FF4444')
+Color = namedtuple("Color",("recent", "old", "abnormal"))
+mycolor = Color('#8DD3C7', '#666699','#FF4444')
 
 plt.style.use('dark_background')
 
@@ -33,7 +33,11 @@ points = None
 startRef = 0
 lastLogIndex = 0
 userNote = {}
+START_DATE = None
+END_DATE = None
+NUMBER_OF_CHAT = 0
 log = None
+
 
 def init_points(streamer, date):
     result = ChattyParser.readFile(LOG_PATH, streamer, date)
@@ -42,24 +46,28 @@ def init_points(streamer, date):
     print(log_name)
     global log
     global lastLogIndex
+    global START_DATE
+    global END_DATE
+    global NUMBER_OF_CHAT
+    global startRef
     log = result.get(log_name)
     _n = len(log)
-    for i in range(1,101):
+    for i in range(1,_n):
+        if log[i] is None:
+            continue
+        elif log[i]['type'] is 'CHAT':
+            if START_DATE is None:
+                START_DATE = log[i]['date'] + str(log[i]['hour']) + ':' + str(log[i]['minute']) + ':' + str(log[i]['second'])
+                startRef=i
+                NUMBER_OF_CHAT += 1
+
+    for i in range(_n-1,0,-1):
         if log[i] is None:
             continue
         if log[i]['type'] is not 'CHAT':
             continue
-        lastLogIndex = i
-        val = HangeulParse.getScore(log[i]['content'])
-        kmerVal = val[0]
-        lengthVal = math.log(val[1])
-        idVal = log[i]['uname']
-        if idVal in points:
-            oldPoint = points.get(idVal)
-            kmerVal = (kmerVal * 0.1 + oldPoint.kmerScore * 0.9)
-            lengthVal = (lengthVal * 0.1 + oldPoint.lengthScore * 0.9)
-        newPoint = Point(kmerScore=kmerVal, lengthScore=lengthVal)
-        points[idVal] = newPoint
+        END_DATE = log[i]['date'] + str(log[i]['hour']) + ':' + str(log[i]['minute']) + ':' + str(log[i]['second'])
+        break
     return points
 
 
@@ -73,8 +81,9 @@ def create_plt(target_plot, points):
     for userID in points:
         point = points.get(userID)
         x = point.kmerScore
-        y = point.lengthScore
+        y = point.karmaScore
         if x >= SCORE_WARNING_LIMIT and y >= BAN_WARNING_LIMIT:
+
             recent_row.append(x)
             recent_col.append(y)
         else:
@@ -117,7 +126,7 @@ def viewSetting(target_plot):
 
     # draw circle area
     theta = np.linspace(-np.pi*10,np.pi*10,200)
-    scales=list(range(10,50,10))
+    scales=list(range(0,AXIS_LIMIT,int(AXIS_LIMIT/4)))
     for scale in scales:
         target_plot.plot(np.sin(theta)*scale,np.cos(theta)*scale, color='g', linewidth=0.1)
 
@@ -131,13 +140,8 @@ def export_init_plt(streamer, date):
 
     viewSetting(myplot)
 
-    global lastLogIndex
-    recentTime = str(log[lastLogIndex]['hour']) + ':' + str(log[lastLogIndex]['minute']) + ':' + str(log[lastLogIndex]['second'])
-
-    global startRef 
-    startRef = 101
     create_plt(myplot, points)
-    return (fig,recentTime)
+    return fig
 
 def update_plt(diff):
     global points
@@ -146,19 +150,23 @@ def update_plt(diff):
     for i in range(startRef,startRef+diff):
         if log[i] is None:
             continue
-        if log[i]['type'] is not 'CHAT':
-            continue
-        lastLogIndex = i
-        val = HangeulParse.getScore(log[i]['content'])
-        kmerVal = val[0]
-        lengthVal = val[1]
-        idVal = log[i]['uname']
-        if idVal in points:
+        if log[i]['type'] is 'CHAT':
+            val = HangeulParse.getScore(log[i]['content'])
+            kmerVal = val[0]
+            lengthVal = val[1]
+            idVal = log[i]['uname']
+            if not idVal in points:
+                points[idVal] = Point(kmerScore=0, karmaScore=0)
             oldPoint = points.get(idVal)
-            kmerVal = (kmerVal + oldPoint.kmerScore * 0.9) 
-            lengthVal = (lengthVal + oldPoint.lengthScore * 0.9)
-        newPoint = Point(kmerScore=kmerVal, lengthScore=lengthVal)
-        points[idVal] = newPoint
+            kmerVal = (kmerVal*0.01 + oldPoint.kmerScore * 0.99) 
+            lengthVal = (lengthVal*0.01 + oldPoint.karmaScore * 0.99)
+            newPoint = Point(kmerScore=kmerVal, karmaScore=lengthVal)
+            points[idVal] = newPoint
+        #elif log[i]['type'] is 'COMMAND':
+        #    if log[i]['command'] is 'BAN':
+                
+        lastLogIndex = i
+                
 
     recentTime = str(log[lastLogIndex]['hour']) + ':' + str(log[lastLogIndex]['minute']) + ':' + str(log[lastLogIndex]['second'])
 

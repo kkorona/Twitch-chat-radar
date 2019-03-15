@@ -4,7 +4,7 @@ import math
 import dictCheck
 
 contentKeyList = ['complete','son','mom','alpha','special','number','etc']
-contentKeyWeight = [17,-3,-3,2,2,0,-10]
+contentKeyWeight = [1,-2,-2,1,1,0,-1]
 contentWeight = dict(zip(contentKeyList, contentKeyWeight))
 
 completeToken = r'[가-힣]'
@@ -43,12 +43,14 @@ def getScore(targetString):
     targetObj = disform(targetString)
     ret1 = 0.0
     ret2 = 0
-    ret1 += targetObj['1mer'] + targetObj['2mer']
+    ret1 += targetObj['2mer'] * 10 + targetObj['1mer']
     for myKey in contentKeyList:
         if contentWeight[myKey] < 0:
             ret2 += len(targetObj[myKey])
         else:
             ret2 += contentWeight[myKey] * len(targetObj[myKey])
+    ret2 *= 40
+    ret2 -= 200
     return (ret1,ret2)
     
 

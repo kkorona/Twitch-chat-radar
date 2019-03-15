@@ -37,8 +37,8 @@ NAME_WIDTH = 5
 count = 0
 
 tempNum = 1000
-tempDate = "2019-01-24"
-tempStreamer = "lol_ambition"
+tempDate = "2019-01-16"
+tempStreamer = "zilioner"
 tempTime = "17:01:54"
 diff = 0
 
@@ -48,6 +48,8 @@ simRun = False
 
 # Updating Objects
 canvas = None
+startTimeEntry = None
+endTimeEntry = None
 currentTimeEntry = None
 
 # Frame Links
@@ -161,7 +163,6 @@ def statInit(window):
     entry.insert(tk.END, tempTime)
     entry.config(state="readonly")
     entry.grid(row=5, column=1)
-
 
     # current date
     label = tk.Label(statFrame, relief="groove", text="Current Date : ", bd=0)
@@ -292,10 +293,10 @@ def radarInit(window):
     
     global canvas
     result = graph_viewer.export_init_plt((tempStreamer,),(tempDate,))
-    canvas = FigureCanvasTkAgg(result[0], master=radarFrame)
+    canvas = FigureCanvasTkAgg(result, master=radarFrame)
     canvas.draw()
     canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1)
-    currentTime = result[1]
+    currentTime = graph_viewer.START_DATE
     global currentTimeEntry
     updateConfig(currentTimeEntry,currentTime)
 
