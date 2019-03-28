@@ -5,7 +5,7 @@ from pprint import pprint
 
 PATH_1MER = r'D:\Data\joongangdict\Joongang1merDicPy.json'
 PATH_2MER = r'D:\Data\joongangdict\Joongang2merDicPy.json'
-f = lambda x : math.log2(x/500)
+f = lambda x : math.log(x/2000)
 
 with open(PATH_1MER,'r') as f_1mer:
     data_1mer = json.load(f_1mer)
@@ -23,11 +23,13 @@ def show_kmer(s_mer):
         show.append(val)
 
     show.sort()
+    xl = range(0,len(show))
 
     plt.xlabel('log of frequency')
     plt.ylabel('# of people')
-    plt.title(str(1) + '-mer histogram')
-    plt.hist(show,bins=range(-10,20,1), rwidth = 0.8)
+    plt.title('k-mer histogram')
+    plt.plot(xl,show)
+    #plt.hist(show,bins=range(0,100,1), rwidth = 0.8)
     plt.show()
 
     with open("res.txt",'w', encoding='utf-16') as f:

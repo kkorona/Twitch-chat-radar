@@ -5,25 +5,35 @@ from matplotlib.backends.backend_tkagg import (
 # Implement the default Matplotlib key bindings.
 from matplotlib.backend_bases import key_press_handler
 from matplotlib.figure import Figure
+import matplotlib.scale as mscale
+import matplotlib.transforms as mtransforms
+import matplotlib.ticker as ticker
 from collections import namedtuple
 import numpy as np
 import ChattyParser
 import HangeulParse
 import random
 import math
+import re
+import gui
 
 CONTENT_PATH = "D:\\Twitch-chat-radar\\data\\log_contents\\"
 LOG_PATH = "D:\\Twitch-chat-radar\\data\\logs\\"
+LOG_NAME = None
 SCORE_WARNING_LIMIT = 0
 BAN_WARNING_LIMIT = 0
-AXIS_LIMIT = 200
+X_AXIS_LIMIT = 200
+Y_AXIS_LIMIT = 200
+MIN_SHOW_FREQUENCY = 0
+MAX_HOLD_FREQUENCY = 10
+TIME_PERIOD_LIMIT = 600
 
-Point = namedtuple("Point",("kmerScore","karmaScore"))
+Point = namedtuple("Point",("kmerScore","completionScore","time", "freq","id"))
 matplotlib.use("TkAgg")
 myplot = None
 fig = None
-Color = namedtuple("Color",("recent", "old", "abnormal"))
-mycolor = Color('#8DD3C7', '#666699','#FF4444')
+Color = namedtuple("Color",("recent", "old", "abnormal", "bad", "subscriber"))
+mycolor = Color('#5786D3', '#666699','#FFAE42', '#FF2222', '#A21ACC')
 
 plt.style.use('dark_background')
 
@@ -33,23 +43,39 @@ points = None
 startRef = 0
 lastLogIndex = 0
 userNote = {}
+subsList = set()
+banList = set()
+permaBanList = set()
 START_DATE = None
 END_DATE = None
 NUMBER_OF_CHAT = 0
+curTime = 0
 log = None
 
+TIME_WEIGHT = {"year":32140800, "month":2678400, "day":86400, "hour":3600, "minute":60, "second":1}
+TIME_KEY_LIST=["year","month","day","hour","minute","second"]
+
+def convertTime(userInfo):
+    result = 0
+    for myKey in TIME_KEY_LIST:
+        val = int(userInfo.get(myKey))
+        if myKey is "year": 
+            val -= 2010
+        result += val * TIME_WEIGHT.get(myKey)
+    return result
 
 def init_points(streamer, date):
     result = ChattyParser.readFile(LOG_PATH, streamer, date)
     points = {}
     log_name = date[0] + "_#" + streamer[0] + ".log"
-    print(log_name)
+    global LOG_NAME
     global log
     global lastLogIndex
     global START_DATE
     global END_DATE
     global NUMBER_OF_CHAT
     global startRef
+    LOG_NAME = log_name
     log = result.get(log_name)
     _n = len(log)
     for i in range(1,_n):
@@ -78,21 +104,59 @@ def create_plt(target_plot, points):
     old_col = []
     warn_row = []
     warn_col = []
+    bad_row = []
+    bad_col = []
+    subs_row = []
+    subs_col = []
+    deleteList = []
     for userID in points:
         point = points.get(userID)
-        x = point.kmerScore
-        y = point.karmaScore
-        if x >= SCORE_WARNING_LIMIT and y >= BAN_WARNING_LIMIT:
-
-            recent_row.append(x)
-            recent_col.append(y)
-        else:
-            warn_row.append(x)
-            warn_col.append(y)
+        x = point.kmerScore * 5
+        y = point.completionScore * 5
+        flag = True
+        if point.freq < MIN_SHOW_FREQUENCY:
+            flag = False
+        '''
+        elif (curTime - point.time) >= TIME_PERIOD_LIMIT:
+            deleteList.append(userID)
+            flag = False
+            continue    
+        '''
+        if flag is True:    
+            if x > X_AXIS_LIMIT * 0.95:
+                x = X_AXIS_LIMIT * 0.95
+            if y > Y_AXIS_LIMIT * 0.95:
+                y = Y_AXIS_LIMIT * 0.95
+            if x < -X_AXIS_LIMIT * 0.95:
+                x = -X_AXIS_LIMIT * 0.95
+            if y < -Y_AXIS_LIMIT * 0.95:
+                y = -Y_AXIS_LIMIT * 0.95
+            
+            #BAN APPLICATOIN
+            if userID in permaBanList:
+                bad_row.append(x)
+                bad_col.append(y)
+            elif userID in banList:
+                warn_row.append(x)
+                warn_col.append(y)
+            elif userID in subsList:
+                subs_row.append(x)
+                subs_col.append(y)
+            elif point.freq >= MAX_HOLD_FREQUENCY:
+                old_row.append(x)
+                old_col.append(y)
+            else:
+                recent_row.append(x)
+                recent_col.append(y)
     
     target_plot.plot(recent_row,recent_col,'o',color=mycolor.recent, markersize = 2)
     target_plot.plot(old_row,old_col,'o',color=mycolor.old, markersize = 2)
-    target_plot.plot(warn_row,warn_col,'o',color=mycolor.abnormal, markersize = 2)
+    target_plot.plot(subs_row,subs_col,'o',color=mycolor.subscriber, markersize = 3)
+    target_plot.plot(warn_row,warn_col,'o',color=mycolor.abnormal, markersize = 4)
+    target_plot.plot(bad_row,bad_col,'o',color=mycolor.bad, markersize = 4)
+
+    for userID in deleteList:
+        del points[userID]
 
 
 def show_plt(target_plot):
@@ -120,15 +184,35 @@ def viewSetting(target_plot):
     target_plot.xaxis.set_ticks_position('bottom')
     target_plot.yaxis.set_ticks_position('left')
 
+    # Setting squareroot scale
+    # target_plot.xaxis.set_xscale('squareroot')
+    # target_plot.yaxis.set_yscale('squareroot')
+
     # Setting axe range
-    target_plot.set_xlim(-AXIS_LIMIT,AXIS_LIMIT)
-    target_plot.set_ylim(-AXIS_LIMIT,AXIS_LIMIT)
+    target_plot.set_xlim(-X_AXIS_LIMIT,X_AXIS_LIMIT)
+    target_plot.set_ylim(-Y_AXIS_LIMIT,Y_AXIS_LIMIT)
 
     # draw circle area
     theta = np.linspace(-np.pi*10,np.pi*10,200)
-    scales=list(range(0,AXIS_LIMIT,int(AXIS_LIMIT/4)))
-    for scale in scales:
-        target_plot.plot(np.sin(theta)*scale,np.cos(theta)*scale, color='g', linewidth=0.1)
+    x_scales=list(range(0,X_AXIS_LIMIT+1,int(X_AXIS_LIMIT/4)))
+    y_scales=list(range(0,Y_AXIS_LIMIT+1,int(Y_AXIS_LIMIT/4)))
+    for (x_scale,y_scale) in zip(x_scales, y_scales):
+        target_plot.plot(np.sin(theta)*x_scale,np.cos(theta)*y_scale, color='g', linewidth=0.1)
+
+def brs(myFreq, curDistance):
+    spreadBalance = 0
+    if curDistance >= 10000:
+        spreadBalance = 1
+    else:
+        spreadBalance = (curDistance/10000) ** (1. / 2)
+    if myFreq >= MAX_HOLD_FREQUENCY:
+        return 0.99
+    retVal = (myFreq/MAX_HOLD_FREQUENCY) ** (2. / 5)
+    if retVal * spreadBalance >= 0.99:
+        return 0.99
+    else:
+        return retVal * spreadBalance
+    
 
 def export_init_plt(streamer, date):
     global points
@@ -147,23 +231,53 @@ def update_plt(diff):
     global points
     global startRef
     global lastLogIndex
+    global curTime
+    consoleResult = ""
     for i in range(startRef,startRef+diff):
+        if i >= len(log):
+            continue
         if log[i] is None:
             continue
         if log[i]['type'] is 'CHAT':
             val = HangeulParse.getScore(log[i]['content'])
             kmerVal = val[0]
-            lengthVal = val[1]
+            completionVal = val[1]
             idVal = log[i]['uname']
+            if log[i]['auth'].find('+') >= 0 :
+                    subsList.add(idVal)
+            timeVal = convertTime(log[i])
+            curTime = timeVal
             if not idVal in points:
-                points[idVal] = Point(kmerScore=0, karmaScore=0)
+                points[idVal] = Point(kmerScore=0, completionScore=0, time=timeVal, id=idVal, freq=0)
             oldPoint = points.get(idVal)
-            kmerVal = (kmerVal*0.01 + oldPoint.kmerScore * 0.99) 
-            lengthVal = (lengthVal*0.01 + oldPoint.karmaScore * 0.99)
-            newPoint = Point(kmerScore=kmerVal, karmaScore=lengthVal)
+            freqVal = oldPoint.freq+1
+            curDistance = oldPoint.kmerScore * oldPoint.kmerScore + oldPoint.completionScore * oldPoint.completionScore
+            completionVal = completionVal*(1-brs(freqVal, curDistance)) + oldPoint.completionScore * brs(freqVal, curDistance)
+            kmerVal = kmerVal*(1-brs(freqVal, curDistance)) + oldPoint.kmerScore * brs(freqVal, curDistance)
+            newPoint = Point(kmerScore=kmerVal, completionScore=completionVal, id=idVal, time=timeVal, freq=freqVal)
             points[idVal] = newPoint
-        #elif log[i]['type'] is 'COMMAND':
-        #    if log[i]['command'] is 'BAN':
+            
+        elif log[i]['type'] is 'COMMAND':
+            curType = log[i]['command']
+            if curType == 'BAN':
+                idVal = log[i]['target']
+                consoleResult += "BAN:" + idVal
+                timeVal = convertTime(log[i])
+                curTime = timeVal
+                if not idVal in points:
+                    points[idVal] = Point(kmerScore=0, completionScore=0, time=timeVal, id=idVal, freq=0)
+                oldPoint = points.get(idVal)
+                kmerVal = oldPoint.kmerScore
+                if log[i]['attribute'] is None:
+                    permaBanList.add(idVal)
+                else:
+                    banList.add(idVal)
+                    consoleResult += "("+log[i]['attribute']+")"
+                consoleResult+="\n"
+                completionVal = oldPoint.completionScore       
+                freqVal = oldPoint.freq + 1
+                newPoint = Point(kmerScore=kmerVal, completionScore=completionVal, id = idVal, time=timeVal, freq=freqVal)
+                points[idVal] = newPoint
                 
         lastLogIndex = i
                 
@@ -175,4 +289,4 @@ def update_plt(diff):
     myplot.clear()
     viewSetting(myplot)
     create_plt(myplot, points)
-    return recentTime
+    return (recentTime,consoleResult)

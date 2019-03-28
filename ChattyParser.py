@@ -70,7 +70,7 @@ def main():
         for i in range(1,_n):
             if resVal[i] is not None:
                 if resVal[i]['type'] is 'CHAT':
-                    print(resVal[i]['content'] + '///' + str(len(resVal[i]['content'])))
+                    print(resVal[i]['auth'])
 
 if __name__ == "__main__":
     main()

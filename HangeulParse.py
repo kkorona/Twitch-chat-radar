@@ -2,9 +2,9 @@ import konlpy.tag as klp
 import re
 import math
 import dictCheck
-
+import myOperations
 contentKeyList = ['complete','son','mom','alpha','special','number','etc']
-contentKeyWeight = [1,-2,-2,1,1,0,-1]
+contentKeyWeight = [1,-1,-1,0,0,0,-1]
 contentWeight = dict(zip(contentKeyList, contentKeyWeight))
 
 completeToken = r'[가-힣]'
@@ -41,16 +41,11 @@ def symbolize(targetString):
 
 def getScore(targetString):
     targetObj = disform(targetString)
-    ret1 = 0.0
     ret2 = 0
-    ret1 += targetObj['2mer'] * 10 + targetObj['1mer']
+    ret1 = targetObj['2mer'] 
     for myKey in contentKeyList:
-        if contentWeight[myKey] < 0:
-            ret2 += len(targetObj[myKey])
-        else:
-            ret2 += contentWeight[myKey] * len(targetObj[myKey])
-    ret2 *= 40
-    ret2 -= 200
+        ret2 += contentWeight[myKey] * len(targetObj[myKey])
+        
     return (ret1,ret2)
     
 
@@ -81,12 +76,13 @@ def disform(targetString):
         ret['1mer'] = math.sqrt(ret['1mer'])
     else:
         ret['1mer'] = -math.sqrt(-ret['1mer'])
-    ret['2mer'] = 0
+    ret['2mer'] = 1
     for mySplit in targetString.split():
         newTargetString = ' ' + mySplit + ' '
         for i in range(0,len(newTargetString)-1):
             content = newTargetString[i]+newTargetString[i+1]
-            ret['2mer'] += dictCheck.return_kmer(content)
+            merval = dictCheck.return_kmer(content)
+            ret['2mer'] += merval
     return ret
 
 

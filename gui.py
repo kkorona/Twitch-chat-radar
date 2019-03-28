@@ -2,6 +2,7 @@
 
 import tkinter as tk
 from tkinter import ttk
+import tkinter.scrolledtext as tkst
 import graph_viewer
 from matplotlib.backends.backend_tkagg import (
     FigureCanvasTkAgg, NavigationToolbar2Tk)
@@ -14,7 +15,6 @@ import HangeulParse
 # Config Variables
 
 LOG_PATH = "D:\\Twitch-chat-radar\\data\\logs\\"
-STREAMER_TABLE = ("zilioner",)
 
 TOTAL_WIDTH = 1600
 TOTAL_HEIGHT = 900
@@ -37,10 +37,10 @@ NAME_WIDTH = 5
 count = 0
 
 tempNum = 1000
-tempDate = "2019-01-16"
-tempStreamer = "zilioner"
+tempDate = "2019-03-26"
+tempStreamer = "lol_ambition"
 tempTime = "17:01:54"
-diff = 0
+diff = 5
 
 # Branch Variables
 getOut = False
@@ -51,6 +51,10 @@ canvas = None
 startTimeEntry = None
 endTimeEntry = None
 currentTimeEntry = None
+timeRateEntry = None
+XAxisEntry = None
+YAxisEntry = None
+logScrollText = None
 
 # Frame Links
 
@@ -80,9 +84,15 @@ def stopLoop():
 
 def onSimulation(x):
     global simRun
-    simRun = True
     global diff
-    diff = x
+    simRun = True
+    diffStr = timeRateEntry.get()
+    consoleLog = "Current speed :" + diffStr + " logs per update"
+    updateConsole(consoleLog)
+    diff = int(diffStr)
+
+def updateConsole(content):
+    logScrollText.insert(tk.INSERT,content+'\n')
 
 def updateConfig(target, content):
     if isinstance(target, tk.Text):
@@ -234,10 +244,11 @@ def processingInit(window):
 
 def viewInit(window):
     global viewFrame
+    global diff
     viewFrame=tk.Frame(window, relief="solid",bd=1)
     viewFrame.grid(row=2, column=0, sticky=tk.N+tk.E+tk.W+tk.S)
 
-    axisvalues = ["k-mer Score", ""]
+    axisvalues = ["k-mer score", "karma score"]
 
     label = tk.Label(viewFrame,text="X axis")
     label.grid(row=0, column = 0)
@@ -253,18 +264,24 @@ def viewInit(window):
 
     label = tk.Label(viewFrame, text="Time Rate")
     label.grid(row=1, column=0)
+    global timeRateEntry
     timeRateEntry = tk.Entry(viewFrame)
     timeRateEntry.grid(row=1, column=1)
+    timeRateEntry.insert(tk.END, '5')
 
-    label = tk.Label(viewFrame, text="Start Date")
+    label = tk.Label(viewFrame, text="X axis scale")
     label.grid(row=2, column=0)
-    startDateEntry = tk.Entry(viewFrame)
-    startDateEntry.grid(row=2, column=1)
+    global XAxisEntry
+    XAxisEntry = tk.Entry(viewFrame)
+    XAxisEntry.grid(row=2, column=1)
+    XAxisEntry.insert(tk.END,"200")
 
-    label = tk.Label(viewFrame, text="End Date")
+    label = tk.Label(viewFrame, text="Y axis scale")
     label.grid(row=2, column=2)
-    endDateEntry = tk.Entry(viewFrame)
-    endDateEntry.grid(row=2, column=3)
+    global YAxisEntry
+    YAxisEntry = tk.Entry(viewFrame)
+    YAxisEntry.grid(row=2, column=3)
+    YAxisEntry.insert(tk.END,"200")
 
 
 def actionInit(window):
@@ -280,7 +297,7 @@ def actionInit(window):
     MButton.grid(row=0,column=0)
     RButton = tk.Button(actionButtonFrame, overrelief=tk.RAISED, text="→", command = lambda:onSimulation(1))
     RButton.grid(row=0,column=1)
-    R100Button = tk.Button(actionButtonFrame, overrelief=tk.RAISED, text="50→", command = lambda:onSimulation(50))
+    R100Button = tk.Button(actionButtonFrame, overrelief=tk.RAISED, text="→→", command = lambda:onSimulation(diff))
     R100Button.grid(row=0, column=2)
     exitButton = tk.Button(actionButtonFrame, overrelief=tk.RAISED, text="exit", command = exitProgram)
     exitButton.grid(row=1, column=0, columnspan=3)
@@ -303,19 +320,38 @@ def radarInit(window):
 
 
 def consoleInit(window):
+    INITIAL_LOG = "Radar started"
     global consoleFrame
     consoleFrame=tk.Frame(window, relief="solid",bd=1)
     consoleFrame.grid(row=2, column=1, rowspan=2, columnspan=2, sticky=tk.N+tk.E+tk.W+tk.S)
+    global logScrollText
+    logScrollText = tkst.ScrolledText(master = consoleFrame, wrap = tk.WORD)
+    logScrollText.pack(fill=tk.BOTH, expand=True)
+    updateConsole(INITIAL_LOG)
 
 
 def updateCanvas():
     global canvas
     global radarFrame
     global diff
-    currentTime = graph_viewer.update_plt(diff)
+
+    prevXLimit = graph_viewer.X_AXIS_LIMIT
+    prevYLimit = graph_viewer.Y_AXIS_LIMIT
+    graph_viewer.X_AXIS_LIMIT = int(XAxisEntry.get())
+    graph_viewer.Y_AXIS_LIMIT = int(YAxisEntry.get())
+
+    if prevXLimit != graph_viewer.X_AXIS_LIMIT or prevYLimit != graph_viewer.Y_AXIS_LIMIT:
+        updateConsole("Current X Range : ["+str(-graph_viewer.X_AXIS_LIMIT)+","+str(graph_viewer.X_AXIS_LIMIT)+"]")
+        updateConsole("Current Y Range : ["+str(-graph_viewer.Y_AXIS_LIMIT)+","+str(graph_viewer.Y_AXIS_LIMIT)+"]")
+
+    updateResult = graph_viewer.update_plt(diff)
+    currentTime = updateResult[0]
+    logUpdate = updateResult[1]
     canvas.draw()
     global currentTimeEntry
     updateConfig(currentTimeEntry,currentTime)
+    if logUpdate != "":
+        updateConsole(logUpdate)
 
 def main():
 
@@ -332,16 +368,17 @@ def main():
     consoleInit(window)
     global getOut
     global simRun
-    cnt = 0
-    while not getOut:
 
+    updateConsole("Current Log: "+graph_viewer.LOG_NAME)
+    cnt = 0
+    window.update()
+    while not getOut:
         if simRun is True:
             cnt += 1
-            if cnt >= 1000:
+            if cnt >= 10000:
                 updateCanvas()
-                cnt%=1000
+                cnt%=10000
         window.update()
-
     
 
 if __name__ == "__main__":

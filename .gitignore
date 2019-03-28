@@ -9,3 +9,5 @@ __pycache__/
 *.xlsx
 *.url
 *.swp
+*.lnk
+test.py
