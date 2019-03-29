@@ -4,7 +4,7 @@ import math
 import dictCheck
 import myOperations
 contentKeyList = ['complete','son','mom','alpha','special','number','etc']
-contentKeyWeight = [1,-1,-1,0,0,0,-1]
+contentKeyWeight = [1,1,1,0,0,0,0]
 contentWeight = dict(zip(contentKeyList, contentKeyWeight))
 
 completeToken = r'[가-힣]'
@@ -41,12 +41,16 @@ def symbolize(targetString):
 
 def getScore(targetString):
     targetObj = disform(targetString)
-    ret2 = 0
-    ret1 = targetObj['2mer'] 
+    completionRet = 0
+    freqRet = targetObj['2mer'] 
+    retType = 1
     for myKey in contentKeyList:
-        ret2 += contentWeight[myKey] * len(targetObj[myKey])
-        
-    return (ret1,ret2)
+        if myKey != 'complete' and len(targetObj[myKey]) > 0:
+            retType = -1
+        if targetObj[myKey] is not None:
+            completionRet += len(targetObj[myKey])
+    completionRet *= retType    
+    return (freqRet,completionRet)
     
 
 def disform(targetString):

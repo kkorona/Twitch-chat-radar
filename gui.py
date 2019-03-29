@@ -34,27 +34,24 @@ LABEL_UPPER_BOARDER = 10
 
 FRAME_HEIGHT = int(TOTAL_HEIGHT/10*3)
 NAME_WIDTH = 5
-count = 0
+fps = 10000
 
 tempNum = 1000
-tempDate = "2019-03-26"
-tempStreamer = "lol_ambition"
+tempDate = "2019-03-20"
+tempStreamer = "pikra10"
 tempTime = "17:01:54"
 diff = 5
 
 # Branch Variables
-getOut = False
 simRun = False
+logAccept = False
+unlocked = True
 
-# Updating Objects
+# Objects to be Updated
 canvas = None
-startTimeEntry = None
-endTimeEntry = None
-currentTimeEntry = None
-timeRateEntry = None
-XAxisEntry = None
-YAxisEntry = None
 logScrollText = None
+streamerName = None
+logStartDate = None
 
 # Frame Links
 
@@ -64,32 +61,78 @@ actionFrame = None
 viewFrame = None
 radarFrame = None
 consoleFrame = None
+window = None
 
 # Configuration Data
 
-configDict = {}
-configTarget = {}
+entryList = {}
+openEntryList = ['Log Amount', 'Frame Speed', 'X axis scale', 'Y axis scale']
 
 
 # Actions
 
 
 def exitProgram():
-    global getOut
-    getOut = True
+    global window
+    window.destroy()
 
 def stopLoop():
-    global simRun
-    simRun = False
+    global logAccept
+    if logAccept == False:
+        updateConsole('Please submit chat log information.')
+    else:
+        global simRun
+        simRun = False
+        global unlocked
+        unlocked = True
+        openEntry()
+        updateConsole('Radar Stop')
 
 def onSimulation(x):
-    global simRun
-    global diff
-    simRun = True
-    diffStr = timeRateEntry.get()
-    consoleLog = "Current speed :" + diffStr + " logs per update"
-    updateConsole(consoleLog)
-    diff = int(diffStr)
+    global logAccept
+    if logAccept == False:
+        updateConsole('Please submit chat log information.')
+    else:
+        global simRun
+        global diff
+        global fps
+        simRun = True
+        diffStr = entryList['Log Amount'].get()
+        fpsStr = entryList['Frame Speed'].get()
+        speedShow = '1'
+        if x != 1:
+            speedShow = diffStr
+        consoleLog = "Current speed :" + speedShow + " logs per update"
+        updateConsole(consoleLog)
+        consoleLog = "Current frame speed :" + fpsStr
+        updateConsole(consoleLog)
+        if x == 1:
+            diff = 1
+        else:
+            diff = int(diffStr)
+        fps = int(fpsStr)
+
+def getLogInfo():
+    global logAccept
+    global entryList
+    global streamerName
+    global logStartDate
+    logAccept = True
+    streamerName = entryList['Streamer'].get()
+    logStartDate = entryList['Log Start Date'].get()
+
+
+def updateStatFrame():
+    global entryList
+    updateConfig(entryList['Number of Chat'], str(graph_viewer.NUMBER_OF_CHAT))
+    updateConfig(entryList['Number of Users'], str(graph_viewer.NUMBER_OF_USERS))
+    updateConfig(entryList['Start Date'], graph_viewer.START_DATE)
+    updateConfig(entryList['Start Time'], graph_viewer.START_TIME)
+    updateConfig(entryList['Current Date'], graph_viewer.START_DATE)
+    updateConfig(entryList['Current Time'], graph_viewer.START_TIME)
+    updateConfig(entryList['End Date'], graph_viewer.END_DATE)
+    updateConfig(entryList['End Time'], graph_viewer.END_TIME)
+
 
 def updateConsole(content):
     logScrollText.insert(tk.INSERT,content+'\n')
@@ -115,84 +158,105 @@ def updateEntry(entry, content):
     entry.config(state='readonly')
 
 def statInit(window):
+    '''
+    entry.insert(tk.END, str(tempNum))
+    entry.config(state="readonly")
+    '''
     global statFrame
+    global entryList
     statFrame = tk.Frame(window, relief="solid", bd=1)
     statFrame.grid(row=0,column=0, sticky=tk.N+tk.E+tk.W+tk.S)
+    entryKey = None
+
+    # name of streamer
+    label = tk.Label(statFrame, relief="groove", text="Streamer : ", bd=0)
+    label.grid(row=0, column=2)
+    # value
+    entryKey = 'Streamer'
+    entryList[entryKey] = tk.Entry(statFrame, width = TEXT_WIDTH)
+    entryList[entryKey].grid(row=0, column=3)
+
+    # log start date
+    label = tk.Label(statFrame, relief="groove", text="Log Start Date : ", bd=0)
+    label.grid(row=1, column=2)
+    # value
+    entryKey = 'Log Start Date'
+    entryList[entryKey] = tk.Entry(statFrame, width = TEXT_WIDTH)
+    entryList[entryKey].insert(tk.END, 'yyyy-mm-dd')
+    entryList[entryKey].grid(row=1, column=3)
+    
 
     # number of chat
     label = tk.Label(statFrame, relief="groove", text="Number of Chat : ", bd=0)
     label.grid(row=0, column=0)
     # value
-    entry = tk.Entry(statFrame, width = TEXT_WIDTH)
-    entry.insert(tk.END, str(tempNum))
-    entry.config(state="readonly")
-    entry.grid(row=0, column=1)
+    entryKey = 'Number of Chat'
+    entryList[entryKey] = tk.Entry(statFrame, width = TEXT_WIDTH)
+    entryList[entryKey].grid(row=0, column=1)
+    entryList[entryKey].config(state='readonly')
     
     # number of users
     label = tk.Label(statFrame, relief="groove", text="Number of Users : ", bd=0)
     label.grid(row=1, column=0)
     # value
-    entry = tk.Entry(statFrame, width = TEXT_WIDTH)
-    entry.insert(tk.END, str(tempNum))
-    entry.config(state="readonly")
-    entry.grid(row=1, column=1)
+    entryKey = 'Number of Users'
+    entryList[entryKey] = tk.Entry(statFrame, width = TEXT_WIDTH)
+    entryList[entryKey].grid(row=1, column=1)
+    entryList[entryKey].config(state='readonly')
 
     # start date
     label = tk.Label(statFrame, relief="groove", text="Start Date : ", bd=0)
     label.grid(row=2, column=0)
     # value
-    entry = tk.Entry(statFrame, width = TEXT_WIDTH)
-    entry.insert(tk.END, tempDate)
-    entry.config(state="readonly")
-    entry.grid(row=2, column=1)
+    entryKey = 'Start Date'
+    entryList[entryKey] = tk.Entry(statFrame, width = TEXT_WIDTH)
+    entryList[entryKey].grid(row=2, column=1)
+    entryList[entryKey].config(state='readonly')
      
     # start time
     label = tk.Label(statFrame, relief="groove", text="Start Time : ", bd=0)
     label.grid(row=3, column=0)
     # value
-    entry = tk.Entry(statFrame, width = TEXT_WIDTH)
-    entry.insert(tk.END, tempTime)
-    entry.config(state="readonly")
-    entry.grid(row=3, column=1)
-    
+    entryKey = 'Start Time'
+    entryList[entryKey] = tk.Entry(statFrame, width = TEXT_WIDTH)
+    entryList[entryKey].grid(row=3, column=1)
+    entryList[entryKey].config(state='readonly')
 
     # end date
     label = tk.Label(statFrame, relief="groove", text="End Date : ", bd=0)
     label.grid(row=4, column=0)
     # value
-    entry = tk.Entry(statFrame, width = TEXT_WIDTH)
-    entry.insert(tk.END, tempDate)
-    entry.config(state="readonly")
-    entry.grid(row=4, column=1)
+    entryKey = 'End Date'
+    entryList[entryKey] = tk.Entry(statFrame, width = TEXT_WIDTH)
+    entryList[entryKey].grid(row=4, column=1)
+    entryList[entryKey].config(state='readonly')
 
     # end time
     label = tk.Label(statFrame, relief="groove", text="End Time : ", bd=0)
     label.grid(row=5, column=0)
     # value
-    entry = tk.Entry(statFrame, width = TEXT_WIDTH)
-    entry.insert(tk.END, tempTime)
-    entry.config(state="readonly")
-    entry.grid(row=5, column=1)
+    entryKey = 'End Time'
+    entryList[entryKey] = tk.Entry(statFrame, width = TEXT_WIDTH)
+    entryList[entryKey].grid(row=5, column=1)
+    entryList[entryKey].config(state='readonly')
 
     # current date
     label = tk.Label(statFrame, relief="groove", text="Current Date : ", bd=0)
     label.grid(row=6, column=0)
     # value
-    entry = tk.Entry(statFrame, width = TEXT_WIDTH)
-    entry.insert(tk.END, tempDate)
-    entry.config(state="readonly")
-    entry.grid(row=6, column=1)
+    entryKey = 'Current Date'
+    entryList[entryKey] = tk.Entry(statFrame, width = TEXT_WIDTH)
+    entryList[entryKey].grid(row=6, column=1)
+    entryList[entryKey].config(state='readonly')
 
     # current time
     label = tk.Label(statFrame, relief="groove", text="Current Time : ", bd=0)
     label.grid(row=7, column=0)
     # value
-    entry = tk.Entry(statFrame, width = TEXT_WIDTH)
-    entry.insert(tk.END, tempTime)
-    entry.config(state="readonly")
-    entry.grid(row=7, column=1)
-    global currentTimeEntry
-    currentTimeEntry = entry
+    entryKey = 'Current Time'
+    entryList[entryKey] = tk.Entry(statFrame, width = TEXT_WIDTH)
+    entryList[entryKey].grid(row=7, column=1)
+    entryList[entryKey].config(state='readonly')
 
 
 def processingInit(window):
@@ -245,6 +309,7 @@ def processingInit(window):
 def viewInit(window):
     global viewFrame
     global diff
+    global entryList
     viewFrame=tk.Frame(window, relief="solid",bd=1)
     viewFrame.grid(row=2, column=0, sticky=tk.N+tk.E+tk.W+tk.S)
 
@@ -262,26 +327,29 @@ def viewInit(window):
     YaxisCombo.set("None")
     YaxisCombo.grid(row=0, column=3)
 
-    label = tk.Label(viewFrame, text="Time Rate")
+    label = tk.Label(viewFrame, text="Log Amount")
     label.grid(row=1, column=0)
-    global timeRateEntry
-    timeRateEntry = tk.Entry(viewFrame)
-    timeRateEntry.grid(row=1, column=1)
-    timeRateEntry.insert(tk.END, '5')
+    entryList['Log Amount'] = tk.Entry(viewFrame)
+    entryList['Log Amount'].grid(row=1, column=1)
+    entryList['Log Amount'].insert(tk.END, '5')
+
+    label = tk.Label(viewFrame, text="Frame Speed")
+    label.grid(row=1, column=2)
+    entryList['Frame Speed'] = tk.Entry(viewFrame)
+    entryList['Frame Speed'].grid(row=1, column=3)
+    entryList['Frame Speed'].insert(tk.END, '10000')
 
     label = tk.Label(viewFrame, text="X axis scale")
     label.grid(row=2, column=0)
-    global XAxisEntry
-    XAxisEntry = tk.Entry(viewFrame)
-    XAxisEntry.grid(row=2, column=1)
-    XAxisEntry.insert(tk.END,"200")
+    entryList['X axis scale'] = tk.Entry(viewFrame)
+    entryList['X axis scale'].grid(row=2, column=1)
+    entryList['X axis scale'].insert(tk.END,"200")
 
     label = tk.Label(viewFrame, text="Y axis scale")
     label.grid(row=2, column=2)
-    global YAxisEntry
-    YAxisEntry = tk.Entry(viewFrame)
-    YAxisEntry.grid(row=2, column=3)
-    YAxisEntry.insert(tk.END,"200")
+    entryList['Y axis scale'] = tk.Entry(viewFrame)
+    entryList['Y axis scale'].grid(row=2, column=3)
+    entryList['Y axis scale'].insert(tk.END,"200")
 
 
 def actionInit(window):
@@ -292,15 +360,16 @@ def actionInit(window):
     actionButtonFrame = tk.Frame(actionFrame, relief="solid", bd=0)
     actionButtonFrame.pack(expand=True)
 
-    
+    submitButton = tk.Button(actionButtonFrame, overrelief=tk.RAISED, text="Submit", command=getLogInfo)
+    submitButton.grid(row = 0, column = 0, columnspan =3)
     MButton = tk.Button(actionButtonFrame, overrelief=tk.RAISED, text="STOP", command = stopLoop)
-    MButton.grid(row=0,column=0)
+    MButton.grid(row=1,column=0)
     RButton = tk.Button(actionButtonFrame, overrelief=tk.RAISED, text="→", command = lambda:onSimulation(1))
-    RButton.grid(row=0,column=1)
-    R100Button = tk.Button(actionButtonFrame, overrelief=tk.RAISED, text="→→", command = lambda:onSimulation(diff))
-    R100Button.grid(row=0, column=2)
+    RButton.grid(row=1,column=1)
+    R100Button = tk.Button(actionButtonFrame, overrelief=tk.RAISED, text="→→", command = lambda:onSimulation(2))
+    R100Button.grid(row=1, column=2)
     exitButton = tk.Button(actionButtonFrame, overrelief=tk.RAISED, text="exit", command = exitProgram)
-    exitButton.grid(row=1, column=0, columnspan=3)
+    exitButton.grid(row=2, column=0, columnspan=3)
 
 
 def radarInit(window):
@@ -309,14 +378,11 @@ def radarInit(window):
     radarFrame.grid(row=0, column=1, rowspan=2, columnspan=2, sticky=tk.N+tk.E+tk.W+tk.S)
     
     global canvas
-    result = graph_viewer.export_init_plt((tempStreamer,),(tempDate,))
+    #result = graph_viewer.export_init_plt((tempStreamer,),(tempDate,))
+    result = graph_viewer.export_init_plt((streamerName,),(logStartDate,))
     canvas = FigureCanvasTkAgg(result, master=radarFrame)
     canvas.draw()
     canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1)
-    currentTime = graph_viewer.START_DATE
-    global currentTimeEntry
-    updateConfig(currentTimeEntry,currentTime)
-
 
 
 def consoleInit(window):
@@ -325,7 +391,7 @@ def consoleInit(window):
     consoleFrame=tk.Frame(window, relief="solid",bd=1)
     consoleFrame.grid(row=2, column=1, rowspan=2, columnspan=2, sticky=tk.N+tk.E+tk.W+tk.S)
     global logScrollText
-    logScrollText = tkst.ScrolledText(master = consoleFrame, wrap = tk.WORD)
+    logScrollText = tkst.ScrolledText(master = consoleFrame, wrap = tk.WORD, width=20, height=10)
     logScrollText.pack(fill=tk.BOTH, expand=True)
     updateConsole(INITIAL_LOG)
 
@@ -334,50 +400,73 @@ def updateCanvas():
     global canvas
     global radarFrame
     global diff
+    global entryList
 
     prevXLimit = graph_viewer.X_AXIS_LIMIT
     prevYLimit = graph_viewer.Y_AXIS_LIMIT
-    graph_viewer.X_AXIS_LIMIT = int(XAxisEntry.get())
-    graph_viewer.Y_AXIS_LIMIT = int(YAxisEntry.get())
+    graph_viewer.X_AXIS_LIMIT = int(entryList['X axis scale'].get())
+    graph_viewer.Y_AXIS_LIMIT = int(entryList['Y axis scale'].get())
 
     if prevXLimit != graph_viewer.X_AXIS_LIMIT or prevYLimit != graph_viewer.Y_AXIS_LIMIT:
         updateConsole("Current X Range : ["+str(-graph_viewer.X_AXIS_LIMIT)+","+str(graph_viewer.X_AXIS_LIMIT)+"]")
         updateConsole("Current Y Range : ["+str(-graph_viewer.Y_AXIS_LIMIT)+","+str(graph_viewer.Y_AXIS_LIMIT)+"]")
 
     updateResult = graph_viewer.update_plt(diff)
-    currentTime = updateResult[0]
-    logUpdate = updateResult[1]
+    logUpdate = updateResult
     canvas.draw()
-    global currentTimeEntry
-    updateConfig(currentTimeEntry,currentTime)
+    updateConfig(entryList['Current Date'], graph_viewer.currentDate)
+    updateConfig(entryList['Current Time'],graph_viewer.currentTime)
     if logUpdate != "":
         updateConsole(logUpdate)
 
-def main():
+def lockEntry():
+    for entryKey in entryList:
+        entryList[entryKey].config(state='readonly')
 
+def openEntry():
+    global entryList
+    global openEntryList
+    for entryKey in openEntryList:
+        entryList[entryKey].config(state='normal')
+
+def main():
+    global window
     window = tk.Tk()
     window.title("Twitch Char Radar")
     #window.geometry(str(TOTAL_WIDTH)+"x"+str(TOTAL_HEIGHT)+"+50+50")
-    window.resizable(False,False )
+    window.resizable(False,False)
 
     statInit(window)
     processingInit(window)
     viewInit(window)
     actionInit(window)
-    radarInit(window)
     consoleInit(window)
-    global getOut
     global simRun
 
+    # Section for getting log info
+    window.update()
+
+    while logAccept is False:
+        window.update()
+
+    radarInit(window)
+    # 
     updateConsole("Current Log: "+graph_viewer.LOG_NAME)
     cnt = 0
+    updateStatFrame()
     window.update()
-    while not getOut:
+    
+    global unlocked
+
+    while True:
         if simRun is True:
+            if unlocked:
+                lockEntry()
+                unlocked = False
             cnt += 1
-            if cnt >= 10000:
+            if cnt >= fps:
                 updateCanvas()
-                cnt%=10000
+                cnt%=fps
         window.update()
     
 

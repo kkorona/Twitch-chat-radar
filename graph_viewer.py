@@ -15,7 +15,6 @@ import HangeulParse
 import random
 import math
 import re
-import gui
 
 CONTENT_PATH = "D:\\Twitch-chat-radar\\data\\log_contents\\"
 LOG_PATH = "D:\\Twitch-chat-radar\\data\\logs\\"
@@ -28,12 +27,13 @@ MIN_SHOW_FREQUENCY = 0
 MAX_HOLD_FREQUENCY = 10
 TIME_PERIOD_LIMIT = 600
 
+
 Point = namedtuple("Point",("kmerScore","completionScore","time", "freq","id"))
 matplotlib.use("TkAgg")
 myplot = None
 fig = None
 Color = namedtuple("Color",("recent", "old", "abnormal", "bad", "subscriber"))
-mycolor = Color('#5786D3', '#666699','#FFAE42', '#FF2222', '#A21ACC')
+mycolor = Color('#5786D3', '#666699','#FF7F00', '#FF2222', '#BFFF00')
 
 plt.style.use('dark_background')
 
@@ -43,14 +43,21 @@ points = None
 startRef = 0
 lastLogIndex = 0
 userNote = {}
+userList = set()
 subsList = set()
 banList = set()
 permaBanList = set()
+currentTime = None
+currentDate = None
+curTimeTick = 0
+log = None
+
 START_DATE = None
 END_DATE = None
+START_TIME = None
+END_TIME = None
 NUMBER_OF_CHAT = 0
-curTime = 0
-log = None
+NUMBER_OF_USERS = None
 
 TIME_WEIGHT = {"year":32140800, "month":2678400, "day":86400, "hour":3600, "minute":60, "second":1}
 TIME_KEY_LIST=["year","month","day","hour","minute","second"]
@@ -72,7 +79,9 @@ def init_points(streamer, date):
     global log
     global lastLogIndex
     global START_DATE
-    global END_DATE
+    global END_DATE 
+    global START_TIME
+    global END_TIME
     global NUMBER_OF_CHAT
     global startRef
     LOG_NAME = log_name
@@ -81,19 +90,19 @@ def init_points(streamer, date):
     for i in range(1,_n):
         if log[i] is None:
             continue
-        elif log[i]['type'] is 'CHAT':
-            if START_DATE is None:
-                START_DATE = log[i]['date'] + str(log[i]['hour']) + ':' + str(log[i]['minute']) + ':' + str(log[i]['second'])
-                startRef=i
-                NUMBER_OF_CHAT += 1
+        if log[i]['type'] != 'CHAT':
+            continue
+        if START_TIME is None:
+            START_TIME = str(log[i]['hour']) + ':' + str(log[i]['minute']) + ':' + str(log[i]['second'])
+            START_DATE = str(log[i]['year']) + '-' + str(log[i]['month']) + '-' + str(log[i]['day'])
+            startRef=i
+        END_TIME = str(log[i]['hour']) + ':' + str(log[i]['minute']) + ':' + str(log[i]['second'])
+        END_DATE = str(log[i]['year']) + '-' + str(log[i]['month']) + '-' + str(log[i]['day'])
+        NUMBER_OF_CHAT += 1
+        userList.add(log[i]['uname'])
 
-    for i in range(_n-1,0,-1):
-        if log[i] is None:
-            continue
-        if log[i]['type'] is not 'CHAT':
-            continue
-        END_DATE = log[i]['date'] + str(log[i]['hour']) + ':' + str(log[i]['minute']) + ':' + str(log[i]['second'])
-        break
+    global NUMBER_OF_USERS
+    NUMBER_OF_USERS = len(userList)
     return points
 
 
@@ -117,7 +126,7 @@ def create_plt(target_plot, points):
         if point.freq < MIN_SHOW_FREQUENCY:
             flag = False
         '''
-        elif (curTime - point.time) >= TIME_PERIOD_LIMIT:
+        elif (curTimeTick - point.time) >= TIME_PERIOD_LIMIT:
             deleteList.append(userID)
             flag = False
             continue    
@@ -200,18 +209,13 @@ def viewSetting(target_plot):
         target_plot.plot(np.sin(theta)*x_scale,np.cos(theta)*y_scale, color='g', linewidth=0.1)
 
 def brs(myFreq, curDistance):
-    spreadBalance = 0
-    if curDistance >= 10000:
-        spreadBalance = 1
-    else:
-        spreadBalance = (curDistance/10000) ** (1. / 2)
-    if myFreq >= MAX_HOLD_FREQUENCY:
-        return 0.99
-    retVal = (myFreq/MAX_HOLD_FREQUENCY) ** (2. / 5)
-    if retVal * spreadBalance >= 0.99:
+    
+    brsRet = (curDistance/10000) ** (1. / 2)
+    if brsRet >= 0.99:
         return 0.99
     else:
-        return retVal * spreadBalance
+        return brsRet
+    
     
 
 def export_init_plt(streamer, date):
@@ -231,7 +235,7 @@ def update_plt(diff):
     global points
     global startRef
     global lastLogIndex
-    global curTime
+    global curTimeTick
     consoleResult = ""
     for i in range(startRef,startRef+diff):
         if i >= len(log):
@@ -246,7 +250,7 @@ def update_plt(diff):
             if log[i]['auth'].find('+') >= 0 :
                     subsList.add(idVal)
             timeVal = convertTime(log[i])
-            curTime = timeVal
+            curTimeTick = timeVal
             if not idVal in points:
                 points[idVal] = Point(kmerScore=0, completionScore=0, time=timeVal, id=idVal, freq=0)
             oldPoint = points.get(idVal)
@@ -263,7 +267,7 @@ def update_plt(diff):
                 idVal = log[i]['target']
                 consoleResult += "BAN:" + idVal
                 timeVal = convertTime(log[i])
-                curTime = timeVal
+                curTimeTick = timeVal
                 if not idVal in points:
                     points[idVal] = Point(kmerScore=0, completionScore=0, time=timeVal, id=idVal, freq=0)
                 oldPoint = points.get(idVal)
@@ -282,11 +286,15 @@ def update_plt(diff):
         lastLogIndex = i
                 
 
-    recentTime = str(log[lastLogIndex]['hour']) + ':' + str(log[lastLogIndex]['minute']) + ':' + str(log[lastLogIndex]['second'])
+    global currentTime
+    global currentDate
+    lastLog = log[lastLogIndex]
+    currentTime = str(lastLog['hour']) + ':' + str(lastLog['minute']) + ':' + str(lastLog['second'])
+    currentDate = str(lastLog['year']) + '-' + str(lastLog['month']) + '-' + str(lastLog['day'])
 
     startRef += diff
     global myplot
     myplot.clear()
     viewSetting(myplot)
     create_plt(myplot, points)
-    return (recentTime,consoleResult)
+    return consoleResult
