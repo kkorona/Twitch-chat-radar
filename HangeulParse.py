@@ -1,10 +1,9 @@
-import konlpy.tag as klp
 import re
 import math
 import dictCheck
-import myOperations
+from myOperations import absoluteSquare
 contentKeyList = ['complete','son','mom','alpha','special','number','etc']
-contentKeyWeight = [1,1,1,0,0,0,0]
+contentKeyWeight = [4,-3,-3,0,0,0,-4]
 contentWeight = dict(zip(contentKeyList, contentKeyWeight))
 
 completeToken = r'[가-힣]'
@@ -39,18 +38,47 @@ def symbolize(targetString):
                 break
     return ret
 
+def count3gramComplete(tagretString):
+    compCnt = 0
+    etcCnt = 0
+    if len(tagretString) >= 3:
+        for i in range(0,len(tagretString) - 3):
+            targetToken = tagretString[i:i+3]
+            complete = completeRE.findall(targetToken)
+            if len(complete) >= 1:
+                compCnt += 1
+            else:
+                etcCnt += 1
+    if(compCnt + etcCnt == 0):
+        etcCnt = 1
+    return float(compCnt) / (compCnt + etcCnt)
+
+def countRunComplete(targetString):
+    tokenCount = {}
+    runCount = 0
+    prev = None
+    for character in targetString:
+        # print(character + "/ " + str(runCount))
+        if prev is None:
+            prev = character
+            continue
+        if character == prev:
+            continue
+        tokenCount[character] = True
+        runCount += 1
+        if prev == ' ':
+            runCount -= 1
+        prev = character
+    runCount += 1
+    return float(len(tokenCount) * runCount) / math.sqrt(float(len(targetString)))
+
+
 def getScore(targetString):
     targetObj = disform(targetString)
     completionRet = 0
-    freqRet = targetObj['2mer'] 
-    retType = 1
-    for myKey in contentKeyList:
-        if myKey != 'complete' and len(targetObj[myKey]) > 0:
-            retType = -1
-        if targetObj[myKey] is not None:
-            completionRet += len(targetObj[myKey])
-    completionRet *= retType    
-    return (freqRet,completionRet)
+    kmerRet = targetObj['1mer'] + targetObj['2mer'] + targetObj['3mer']
+    completionRet = math.sqrt(len(targetString))
+    return (kmerRet,completionRet)
     
 
 def disform(targetString):
@@ -72,26 +100,37 @@ def disform(targetString):
     ret['number'] = number
     ret['etc'] = etc
     ret['1mer'] = 0
+    merCount1 = 0
     for char in targetString:
         if char == ' ':
             continue
         ret['1mer'] += dictCheck.return_kmer(char)
-    if ret['1mer'] > 0:
-        ret['1mer'] = math.sqrt(ret['1mer'])
-    else:
-        ret['1mer'] = -math.sqrt(-ret['1mer'])
-    ret['2mer'] = 1
+        merCount1 += 1
+    ret['1mer'] /= merCount1
+
+    ret['2mer'] = 0
+    ret['3mer'] = 0
+    merCount2 = 0
+    merCount3 = 0
     for mySplit in targetString.split():
         newTargetString = ' ' + mySplit + ' '
         for i in range(0,len(newTargetString)-1):
-            content = newTargetString[i]+newTargetString[i+1]
+            content = newTargetString[i:i+2]
             merval = dictCheck.return_kmer(content)
             ret['2mer'] += merval
+            merCount2 += 1
+        for i in range(0,len(newTargetString)-2):
+            content = newTargetString[i:i+3]
+            merval = dictCheck.return_kmer(content)
+            ret['3mer'] += merval
+            merCount3 += 1
+    ret['2mer'] /= merCount2
+    ret['2mer'] = absoluteSquare(ret['2mer'],1.2)
+    ret['3mer'] /= merCount3
+    ret['3mer'] = absoluteSquare(ret['3mer'],1.5)
     return ret
 
 
 if __name__ == '__main__':
-    test = u'선Q쓰지 마시고 일단 E로 끄는 것 부터 생각하세요ㅋㅋㅋ. W는 。아끼는게 좋고 궁은 막 쓰세요.'
-    val = disform(test)
-    for key in val:
-        print(key + ": " + str(val.get(key)))
+    print(countRunComplete('비비비비비 비비비비비 비둘기 비둘기 비둘기기기기기'))
+    print(countRunComplete('ㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋ'))

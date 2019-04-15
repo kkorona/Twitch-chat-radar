@@ -1,17 +1,27 @@
 import json
 import math
+from myOperations import absoluteSquare
 import matplotlib.pyplot as plt
 from pprint import pprint
 
 PATH_1MER = r'D:\Data\joongangdict\Joongang1merDicPy.json'
 PATH_2MER = r'D:\Data\joongangdict\Joongang2merDicPy.json'
-f = lambda x : math.log(x/2000)
+PATH_3MER = r'D:\Data\joongangdict\Joongang3merDicPy.json'
+
+CUT_1MER = 23.15/4
+CUT_2MER = 22.10/4
+CUT_3MER = 20.36/4
+
+f = lambda x : math.log(x,2)
 
 with open(PATH_1MER,'r') as f_1mer:
     data_1mer = json.load(f_1mer)
 
 with open(PATH_2MER,'r') as f_2mer:
     data_2mer = json.load(f_2mer)
+
+with open(PATH_3MER, 'r') as f_3mer:
+    data_3mer = json.load(f_3mer)
 
 
 def show_kmer(s_mer):
@@ -24,9 +34,10 @@ def show_kmer(s_mer):
 
     show.sort()
     xl = range(0,len(show))
+    print(show[-1])
 
-    plt.xlabel('log of frequency')
-    plt.ylabel('# of people')
+    plt.xlabel('Log(frequency)')
+    plt.ylabel('Sorted k-mer value index')
     plt.title('k-mer histogram')
     plt.plot(xl,show)
     #plt.hist(show,bins=range(0,100,1), rwidth = 0.8)
@@ -41,21 +52,37 @@ def return_kmer(targetToken):
     if len(targetToken) is 1:
         if targetToken in data_1mer:
             result = f(data_1mer[targetToken])
+        result -= CUT_1MER
     elif len(targetToken) is 2:
-        if targetToken in data_2mer:
-            if(targetToken[0] is ' '):
-                cnvString = '_' + targetToken[1]
-            elif(targetToken[1] is ' '):
-                cnvString = targetToken[0] + '_'
-            else:
-                cnvString = targetToken
+        cnvString = ""
+        if(targetToken[0] is ' '):
+            cnvString = '_' + targetToken[1]
+        elif(targetToken[1] is ' '):
+            cnvString = targetToken[0] + '_'
+        else:
+            cnvString = targetToken
+        if cnvString in data_2mer:
             result = f(data_2mer[cnvString])
-    else:
-        result = 0
+        result -= CUT_2MER
+        result = absoluteSquare(result,1.5)
+    elif len(targetToken) is 3:
+        cnvString = ""
+        if (targetToken[0] is ' ' and targetToken[2] is ' '):
+            cnvString = '_' + targetToken[1] + '_'    
+        elif(targetToken[0] is ' '):
+            cnvString = '_' + targetToken[1:3]
+        elif(targetToken[2] is ' '):
+            cnvString = targetToken[0:2] + '_'
+        else:
+            cnvString = targetToken
+        if cnvString in data_3mer:
+            result = f(data_3mer[cnvString])
+        result -= CUT_3MER
+        result = absoluteSquare(result,2)
     return result
 
 def main():
-    show_kmer(data_2mer)
+    print(return_kmer(' 너 '))
 
 if __name__ == '__main__':
     main()

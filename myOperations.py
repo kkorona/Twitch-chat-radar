@@ -1,7 +1,7 @@
-def squareSpread(x):
+def absoluteSquare(x,y):
     ret = 0
     if x >= 0:
-        ret = x*x
+        ret = x**y
     else:
-        ret = -(x*x)
+        ret = -((-x)**y)
     return ret

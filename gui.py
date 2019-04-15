@@ -2,7 +2,7 @@
 
 import tkinter as tk
 from tkinter import ttk
-import tkinter.scrolledtext as tkst
+from tkinter.scrolledtext import ScrolledText
 import graph_viewer
 from matplotlib.backends.backend_tkagg import (
     FigureCanvasTkAgg, NavigationToolbar2Tk)
@@ -32,14 +32,20 @@ LABEL_HORIZENTAL_GAP = 270
 LABEL_LEFT_BOARDER = 40
 LABEL_UPPER_BOARDER = 10
 
+LOGTEXTCOLOR = {
+    'VIEWCHANGE' : 'black',
+    'BAN' : 'black',
+    'PERMABAN' : 'red',
+    'FRAMECHANGE' : 'black',
+    'BANCONTENTS' : 'black',
+    'STATE' : 'black',
+    'ERROR' : 'red'
+}
+
 FRAME_HEIGHT = int(TOTAL_HEIGHT/10*3)
 NAME_WIDTH = 5
 fps = 10000
 
-tempNum = 1000
-tempDate = "2019-03-20"
-tempStreamer = "pikra10"
-tempTime = "17:01:54"
 diff = 5
 
 # Branch Variables
@@ -56,21 +62,26 @@ logStartDate = None
 # Frame Links
 
 statFrame = None
-processingFrame = None
 actionFrame = None
 viewFrame = None
 radarFrame = None
 consoleFrame = None
-window = None
+window = tk.Tk()
+window.title("Twitch Char Radar")
+window.resizable(False,False)
 
 # Configuration Data
 
 entryList = {}
-openEntryList = ['Log Amount', 'Frame Speed', 'X axis scale', 'Y axis scale']
-
+openEntryList = ['Log Amount', 'Frame Speed', 'X axis maximum', 'X axis minimum', 'Y axis maximum', 'Y axis minimum']
+TEMP_BAN_VISIBILITY = tk.BooleanVar(window)
+SUBSCRIBER_VISIBILITY = tk.BooleanVar(window)
+NORMAL_VISIBILITY = tk.BooleanVar(window)
+REST_VISIBILITY = tk.BooleanVar(window)
+SHOW_TRACKER = tk.BooleanVar(window)
+SHOW_TRACK_HISTORY = tk.BooleanVar(window)
 
 # Actions
-
 
 def exitProgram():
     global window
@@ -79,19 +90,19 @@ def exitProgram():
 def stopLoop():
     global logAccept
     if logAccept == False:
-        updateConsole('Please submit chat log information.')
+        updateConsole('Please submit chat log information.','ERROR')
     else:
         global simRun
         simRun = False
         global unlocked
         unlocked = True
         openEntry()
-        updateConsole('Radar Stop')
+        updateConsole('Radar Stop','STATE')
 
 def onSimulation(x):
     global logAccept
     if logAccept == False:
-        updateConsole('Please submit chat log information.')
+        updateConsole('Please submit chat log information.','ERROR')
     else:
         global simRun
         global diff
@@ -103,9 +114,9 @@ def onSimulation(x):
         if x != 1:
             speedShow = diffStr
         consoleLog = "Current speed :" + speedShow + " logs per update"
-        updateConsole(consoleLog)
+        updateConsole(consoleLog,'FRAMECHANGE')
         consoleLog = "Current frame speed :" + fpsStr
-        updateConsole(consoleLog)
+        updateConsole(consoleLog,'FRAMECHANGE')
         if x == 1:
             diff = 1
         else:
@@ -134,8 +145,17 @@ def updateStatFrame():
     updateConfig(entryList['End Time'], graph_viewer.END_TIME)
 
 
-def updateConsole(content):
-    logScrollText.insert(tk.INSERT,content+'\n')
+def updateConsole(content, tag):
+    lcontent = ""
+    prevIdx = 0
+    for idx in range(0,len(content)):
+        if content[idx] > '\uFFFF':
+            lcontent = lcontent + content[prevIdx : idx]
+            prevIdx = idx+1
+    if prevIdx < len(content):
+        lcontent += content[prevIdx:]
+    logScrollText.insert(tk.INSERT,lcontent+'\n')
+    logScrollText.tag_config(tag,foreground = LOGTEXTCOLOR[tag])
 
 def updateConfig(target, content):
     if isinstance(target, tk.Text):
@@ -162,6 +182,7 @@ def statInit(window):
     entry.insert(tk.END, str(tempNum))
     entry.config(state="readonly")
     '''
+
     global statFrame
     global entryList
     statFrame = tk.Frame(window, relief="solid", bd=1)
@@ -257,61 +278,29 @@ def statInit(window):
     entryList[entryKey] = tk.Entry(statFrame, width = TEXT_WIDTH)
     entryList[entryKey].grid(row=7, column=1)
     entryList[entryKey].config(state='readonly')
-
-
-def processingInit(window):
-    global processingFrame
-    processingFrame=tk.Frame(window, relief="solid",bd=1)
-    processingFrame.grid(row=1, column=0, sticky=tk.N+tk.E+tk.W+tk.S)
-
-    mode = tk.IntVar()
-    showArrow = tk.IntVar()
-
-    # Animation Mode
-    animationFrame = tk.Frame(processingFrame, relief = "solid", bd=0.5)
-    animationFrame.pack(side = tk.LEFT, anchor=tk.W, fill=tk.BOTH, expand=1)
-
-    animationFrameEnable = tk.Radiobutton(animationFrame, text="Animation Mode", variable = mode, value=1)
-    animationFrameEnable.pack(side=tk.TOP)
-
-    #Threshold
-    label = tk.Label(animationFrame, relief="groove", text="Threshold", bd=0)
-    label.pack(side=tk.TOP)
-    # value
-    animationThresholdEntry = tk.Entry(animationFrame, width = TEXT_WIDTH)
-    animationThresholdEntry.pack(side=tk.TOP)
-
-    #history Mode
-    historyFrame = tk.Frame(processingFrame, relief="solid", bd=0.5)
-    historyFrame.pack(side=tk.RIGHT, anchor=tk.E, fill=tk.BOTH, expand=1)
-
-    historyFrameEnable = tk.Radiobutton(historyFrame, text="History Mode", variable = mode, value=2)
-    historyFrameEnable.pack(side=tk.TOP)
-
-    #Threshold
-    label = tk.Label(historyFrame, relief="groove", text="Threshold", bd=0)
-    label.pack(side=tk.TOP)
-    # value
-    historyThresholdEntry = tk.Entry(historyFrame)
-    historyThresholdEntry.pack(side=tk.TOP)
-
-    arrowEnable = tk.Radiobutton(historyFrame, text="Show Arrow", variable = showArrow, value=3)
-    arrowEnable.pack(side=tk.TOP)
-
-    #Arrow Invisibility
-    label = tk.Label(historyFrame, relief="groove", text="Arrow invisibility : ", bd=0)
-    label.pack(side=tk.TOP)
-    # value
-    arrowInvisibilityEntry = tk.Entry(historyFrame)
-    arrowInvisibilityEntry.pack(side=tk.TOP)
     
 
 def viewInit(window):
     global viewFrame
     global diff
     global entryList
+
+    global TEMP_BAN_VISIBILITY
+    global SUBSCRIBER_VISIBILITY
+    global NORMAL_VISIBILITY
+    global REST_VISIBILITY
+    global SHOW_TRACKER
+    global SHOW_TRACK_HISTORY
+
+    TEMP_BAN_VISIBILITY.set(False)
+    SUBSCRIBER_VISIBILITY.set(False)
+    NORMAL_VISIBILITY.set(False)
+    REST_VISIBILITY.set(False)
+    SHOW_TRACKER.set(False)
+    SHOW_TRACK_HISTORY.set(False)
+
     viewFrame=tk.Frame(window, relief="solid",bd=1)
-    viewFrame.grid(row=2, column=0, sticky=tk.N+tk.E+tk.W+tk.S)
+    viewFrame.grid(row=1, column=0, sticky=tk.N+tk.E+tk.W+tk.S)
 
     axisvalues = ["k-mer score", "karma score"]
 
@@ -339,23 +328,48 @@ def viewInit(window):
     entryList['Frame Speed'].grid(row=1, column=3)
     entryList['Frame Speed'].insert(tk.END, '10000')
 
-    label = tk.Label(viewFrame, text="X axis scale")
+    label = tk.Label(viewFrame, text="X axis maximum")
     label.grid(row=2, column=0)
-    entryList['X axis scale'] = tk.Entry(viewFrame)
-    entryList['X axis scale'].grid(row=2, column=1)
-    entryList['X axis scale'].insert(tk.END,"200")
+    entryList['X axis maximum'] = tk.Entry(viewFrame)
+    entryList['X axis maximum'].grid(row=2, column=1)
+    entryList['X axis maximum'].insert(tk.END,"200")
 
-    label = tk.Label(viewFrame, text="Y axis scale")
+    label = tk.Label(viewFrame, text="X axis minimum")
     label.grid(row=2, column=2)
-    entryList['Y axis scale'] = tk.Entry(viewFrame)
-    entryList['Y axis scale'].grid(row=2, column=3)
-    entryList['Y axis scale'].insert(tk.END,"200")
+    entryList['X axis minimum'] = tk.Entry(viewFrame)
+    entryList['X axis minimum'].grid(row=2, column=3)
+    entryList['X axis minimum'].insert(tk.END,"-200")
+
+    label = tk.Label(viewFrame, text="Y axis maximum")
+    label.grid(row=3, column=0)
+    entryList['Y axis maximum'] = tk.Entry(viewFrame)
+    entryList['Y axis maximum'].grid(row=3, column=1)
+    entryList['Y axis maximum'].insert(tk.END,"200")
+
+    label = tk.Label(viewFrame, text="Y axis minimum")
+    label.grid(row=3, column=2)
+    entryList['Y axis minimum'] = tk.Entry(viewFrame)
+    entryList['Y axis minimum'].grid(row=3, column=3)
+    entryList['Y axis minimum'].insert(tk.END,"-200")
+
+    checkButton = tk.Checkbutton(viewFrame, text="Temporary banned user", variable=TEMP_BAN_VISIBILITY)
+    checkButton.grid(row = 4, column = 0, columnspan=2, sticky=tk.W)
+    checkButton = tk.Checkbutton(viewFrame, text="Subscribers", variable = SUBSCRIBER_VISIBILITY)
+    checkButton.grid(row = 4, column = 2, columnspan=2, sticky=tk.W)
+    checkButton = tk.Checkbutton(viewFrame, text="Viewers in rest", variable =  REST_VISIBILITY)
+    checkButton.grid(row = 5, column = 0, columnspan=2, sticky=tk.W)
+    checkButton = tk.Checkbutton(viewFrame, text="Normal Users", variable =  NORMAL_VISIBILITY)
+    checkButton.grid(row = 5, column = 2, columnspan=2, sticky=tk.W)
+    checkButton = tk.Checkbutton(viewFrame, text="AVG. Tracker", variable =  SHOW_TRACKER)
+    checkButton.grid(row = 6, column = 0, columnspan=2, sticky=tk.W)
+    checkButton = tk.Checkbutton(viewFrame, text="AVG. Track History", variable =  SHOW_TRACK_HISTORY)
+    checkButton.grid(row = 6, column = 2, columnspan=2, sticky=tk.W)
 
 
 def actionInit(window):
     global actionFrame
     actionFrame = tk.Frame(window, relief="solid", bd=1)
-    actionFrame.grid(row=3, column=0, sticky=tk.N+tk.E+tk.W+tk.S)
+    actionFrame.grid(row=2, column=0, sticky=tk.N+tk.E+tk.W+tk.S)
     
     actionButtonFrame = tk.Frame(actionFrame, relief="solid", bd=0)
     actionButtonFrame.pack(expand=True)
@@ -389,11 +403,11 @@ def consoleInit(window):
     INITIAL_LOG = "Radar started"
     global consoleFrame
     consoleFrame=tk.Frame(window, relief="solid",bd=1)
-    consoleFrame.grid(row=2, column=1, rowspan=2, columnspan=2, sticky=tk.N+tk.E+tk.W+tk.S)
+    consoleFrame.grid(row=2, column=1, rowspan=1, columnspan=2, sticky=tk.N+tk.E+tk.W+tk.S)
     global logScrollText
-    logScrollText = tkst.ScrolledText(master = consoleFrame, wrap = tk.WORD, width=20, height=10)
+    logScrollText = ScrolledText(master = consoleFrame, wrap = tk.WORD, width=20, height=10)
     logScrollText.pack(fill=tk.BOTH, expand=True)
-    updateConsole(INITIAL_LOG)
+    updateConsole(INITIAL_LOG, "STATE")
 
 
 def updateCanvas():
@@ -401,23 +415,39 @@ def updateCanvas():
     global radarFrame
     global diff
     global entryList
+    global TEMP_BAN_VISIBILITY
+    global SUBSCRIBER_VISIBILITY
+    global NORMAL_VISIBILITY
+    global REST_VISIBILITY
+    global SHOW_TRACKER
+    global SHOW_TRACK_HISTORY
 
-    prevXLimit = graph_viewer.X_AXIS_LIMIT
-    prevYLimit = graph_viewer.Y_AXIS_LIMIT
-    graph_viewer.X_AXIS_LIMIT = int(entryList['X axis scale'].get())
-    graph_viewer.Y_AXIS_LIMIT = int(entryList['Y axis scale'].get())
+    prevXMax = graph_viewer.X_AXIS_MAXIMUM
+    prevXMin = graph_viewer.X_AXIS_MINIMUM
+    prevYMax = graph_viewer.Y_AXIS_MAXIMUM
+    prevYMin = graph_viewer.Y_AXIS_MINIMUM
 
-    if prevXLimit != graph_viewer.X_AXIS_LIMIT or prevYLimit != graph_viewer.Y_AXIS_LIMIT:
-        updateConsole("Current X Range : ["+str(-graph_viewer.X_AXIS_LIMIT)+","+str(graph_viewer.X_AXIS_LIMIT)+"]")
-        updateConsole("Current Y Range : ["+str(-graph_viewer.Y_AXIS_LIMIT)+","+str(graph_viewer.Y_AXIS_LIMIT)+"]")
+    graph_viewer.X_AXIS_MAXIMUM = int(entryList['X axis maximum'].get())
+    graph_viewer.X_AXIS_MINIMUM = int(entryList['X axis minimum'].get())
+    graph_viewer.Y_AXIS_MAXIMUM = int(entryList['Y axis maximum'].get())
+    graph_viewer.Y_AXIS_MINIMUM = int(entryList['Y axis minimum'].get())
+    graph_viewer.TEMP_BAN_VISIBILITY = TEMP_BAN_VISIBILITY.get()
+    graph_viewer.SUBSCRIBER_VISIBILITY = SUBSCRIBER_VISIBILITY.get()
+    graph_viewer.NORMAL_VISIBILITY = NORMAL_VISIBILITY.get()
+    graph_viewer.REST_VISIBILITY = REST_VISIBILITY.get()
+    graph_viewer.SHOW_TRACKER = SHOW_TRACKER.get()
+    graph_viewer.SHOW_TRACK_HISTORY = SHOW_TRACK_HISTORY.get()
+
+    if prevXMax!= graph_viewer.X_AXIS_MAXIMUM or prevYMax != graph_viewer.Y_AXIS_MAXIMUM or prevXMin != graph_viewer.X_AXIS_MINIMUM or prevYMin != graph_viewer.Y_AXIS_MINIMUM:
+        updateConsole("Current X Range : ["+str(graph_viewer.X_AXIS_MINIMUM)+","+str(graph_viewer.X_AXIS_MAXIMUM)+"]", "VIEWCHANGE")
+        updateConsole("Current Y Range : ["+str(graph_viewer.Y_AXIS_MINIMUM)+","+str(graph_viewer.Y_AXIS_MAXIMUM)+"]", "VIEWCHANGE")
 
     updateResult = graph_viewer.update_plt(diff)
-    logUpdate = updateResult
     canvas.draw()
     updateConfig(entryList['Current Date'], graph_viewer.currentDate)
     updateConfig(entryList['Current Time'],graph_viewer.currentTime)
-    if logUpdate != "":
-        updateConsole(logUpdate)
+    for logUpdate in updateResult:
+        updateConsole(logUpdate[0], logUpdate[1])
 
 def lockEntry():
     for entryKey in entryList:
@@ -431,13 +461,8 @@ def openEntry():
 
 def main():
     global window
-    window = tk.Tk()
-    window.title("Twitch Char Radar")
-    #window.geometry(str(TOTAL_WIDTH)+"x"+str(TOTAL_HEIGHT)+"+50+50")
-    window.resizable(False,False)
 
     statInit(window)
-    processingInit(window)
     viewInit(window)
     actionInit(window)
     consoleInit(window)
@@ -451,12 +476,14 @@ def main():
 
     radarInit(window)
     # 
-    updateConsole("Current Log: "+graph_viewer.LOG_NAME)
+    updateConsole("Current Log: "+graph_viewer.LOG_NAME, 'STATE')
     cnt = 0
     updateStatFrame()
-    window.update()
-    
     global unlocked
+    lockEntry()
+    openEntry()
+
+    window.update()
 
     while True:
         if simRun is True:
