@@ -1,6 +1,5 @@
 import json
 import math
-from myOperations import absoluteSquare
 import matplotlib.pyplot as plt
 from pprint import pprint
 
@@ -8,9 +7,9 @@ PATH_1MER = r'D:\Data\joongangdict\Joongang1merDicPy.json'
 PATH_2MER = r'D:\Data\joongangdict\Joongang2merDicPy.json'
 PATH_3MER = r'D:\Data\joongangdict\Joongang3merDicPy.json'
 
-CUT_1MER = 23.15/4
-CUT_2MER = 22.10/4
-CUT_3MER = 20.36/4
+CUT_1MER = 23.15/2
+CUT_2MER = 22.10/2
+CUT_3MER = 20.36/2
 
 f = lambda x : math.log(x,2)
 
@@ -36,8 +35,8 @@ def show_kmer(s_mer):
     xl = range(0,len(show))
     print(show[-1])
 
-    plt.xlabel('Log(frequency)')
-    plt.ylabel('Sorted k-mer value index')
+    plt.ylabel('Log(frequency)')
+    plt.xlabel('Sorted k-mer value index')
     plt.title('k-mer histogram')
     plt.plot(xl,show)
     #plt.hist(show,bins=range(0,100,1), rwidth = 0.8)
@@ -64,7 +63,6 @@ def return_kmer(targetToken):
         if cnvString in data_2mer:
             result = f(data_2mer[cnvString])
         result -= CUT_2MER
-        result = absoluteSquare(result,1.5)
     elif len(targetToken) is 3:
         cnvString = ""
         if (targetToken[0] is ' ' and targetToken[2] is ' '):
@@ -78,11 +76,10 @@ def return_kmer(targetToken):
         if cnvString in data_3mer:
             result = f(data_3mer[cnvString])
         result -= CUT_3MER
-        result = absoluteSquare(result,2)
     return result
 
 def main():
-    print(return_kmer(' 너 '))
+    show_kmer(data_1mer)
 
 if __name__ == '__main__':
     main()

@@ -70,7 +70,7 @@ END_TIME = None
 NUMBER_OF_CHAT = 0
 NUMBER_OF_USERS = 0
 EXP_FREQ_OF_CHAT = 0
-TRACK_HISTORY_SIZE = 20
+TRACK_HISTORY_SIZE = 40
 
 TEMP_BAN_VISIBILITY = False
 SUBSCRIBER_VISIBILITY = False
@@ -182,6 +182,11 @@ def create_plt(target_plot, points):
                 flag = False
     
         if flag is True:    
+            if point.time + TIME_PERIOD_LIMIT > curTimeTick and y > 0:                
+                avgTemp += y
+                avgSimilarity += x
+                pointCnt += 1
+
             if x > X_AXIS_MAXIMUM * 0.99:
                 x = X_AXIS_MAXIMUM * 0.99
             if y > Y_AXIS_MAXIMUM * 0.99:
@@ -195,30 +200,27 @@ def create_plt(target_plot, points):
             if userID in permaBanList:
                 bad_row.append(x)
                 bad_col.append(y)
-            elif userID in banList and TEMP_BAN_VISIBILITY:
-                warn_row.append(x)
-                warn_col.append(y)
-            elif userID in subsList and SUBSCRIBER_VISIBILITY:
-                subs_row.append(x)
-                subs_col.append(y)
+            elif userID in banList:
+                if TEMP_BAN_VISIBILITY:
+                    warn_row.append(x)
+                    warn_col.append(y)
+            elif userID in subsList:
+                if SUBSCRIBER_VISIBILITY:
+                    subs_row.append(x)
+                    subs_col.append(y)
             elif point.time + TIME_PERIOD_LIMIT < curTimeTick:
                 old_row.append(x)
                 old_col.append(y)
             elif NORMAL_VISIBILITY:
                 recent_row.append(x)
                 recent_col.append(y)
-
-        if point.time + TIME_PERIOD_LIMIT > curTimeTick and y > 0:                
-            avgTemp += y
-            avgSimilarity += x
-            pointCnt += 1
     
     if SHOW_TRACK_HISTORY and len(trackHistoryX) >= TRACK_HISTORY_SIZE:
         st = len(trackHistoryX) - TRACK_HISTORY_SIZE
         ed = len(trackHistoryX)
-        for i in range(ed-1,st,-1):
+        for i in range(st,ed):
             colorSize = int((ed-i)/TRACK_HISTORY_SIZE * 256)
-            colorToken = '#' + int2HexStr(colorSize) + '0000'
+            colorToken = '#' + int2HexStr(colorSize) * 3
             target_plot.plot(trackHistoryX[i-2:i], trackHistoryY[i-2:i],'-', color=colorToken)
 
     
@@ -234,8 +236,9 @@ def create_plt(target_plot, points):
         trackHistoryX.append(avgSimilarity)
         trackHistoryY.append(avgTemp)
         if SHOW_TRACKER:
-            target_plot.axhline(y=avgTemp, color='#BBBBBB', linestyle='-')
-            target_plot.axvline(x=avgSimilarity, color='#BBBBBB', linestyle='-')
+            target_plot.axhline(y=avgTemp, color='#777777', linestyle='-')
+            target_plot.axvline(x=avgSimilarity, color='#777777', linestyle='-')
+            target_plot.plot([avgSimilarity], [avgTemp], 'o', color='#777777', markersize = 6)
 
 
 
