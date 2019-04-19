@@ -18,20 +18,20 @@ import random
 import math
 import re
 
-CONTENT_PATH = "D:\\Twitch-chat-radar\\data\\log_contents\\"
 LOG_PATH = "D:\\Twitch-chat-radar\\data\\logs\\"
 LOG_NAME = None
 SCORE_WARNING_LIMIT = 0
 BAN_WARNING_LIMIT = 0
 X_AXIS_MAXIMUM = 200
-X_AXIS_MINIMUM = -200
+X_AXIS_MINIMUM = 0
 Y_AXIS_MAXIMUM = 200
-Y_AXIS_MINIMUM = -200
+Y_AXIS_MINIMUM = 0
 MIN_SHOW_FREQUENCY = 0
 MAX_HOLD_FREQUENCY = 10
 TIME_PERIOD_LIMIT = 600
 COOLING_RATE = 0.99
 DEFINITE_TEMP = -200
+ALPHA = 1
 
 
 Point = namedtuple("Point",("kmerScore","completionScore","time", "freq","id","noise"))
@@ -61,6 +61,7 @@ chatQueue = defaultdict(deque)
 currentTime = None
 currentDate = None
 curTimeTick = 0
+maxVal = 0
 log = None
 
 START_DATE = None
@@ -71,6 +72,7 @@ NUMBER_OF_CHAT = 0
 NUMBER_OF_USERS = 0
 EXP_FREQ_OF_CHAT = 0
 TRACK_HISTORY_SIZE = 40
+SLOW_RATE = 1
 
 TEMP_BAN_VISIBILITY = False
 SUBSCRIBER_VISIBILITY = False
@@ -137,6 +139,10 @@ def init_points(streamer, date):
     for i in range(1,_n):
         if log[i] is None:
             continue
+        if log[i]['type'] == 'INFO':
+            global SLOW_RATE
+            SLOW_RATE = int(log[i]['slowrate'])
+            continue
         if log[i]['type'] != 'CHAT':
             continue
         if START_TIME is None:
@@ -158,8 +164,6 @@ def init_points(streamer, date):
 def create_plt(target_plot, points):
     recent_row = []
     recent_col = []
-    old_row = []
-    old_col = []
     warn_row = []
     warn_col = []
     bad_row = []
@@ -175,7 +179,7 @@ def create_plt(target_plot, points):
         point = points.get(userID)
         x = point.kmerScore
         # x = squareConvert(x,X_AXIS_LIMIT)
-        y = point.completionScore * COOLING_RATE ** (curTimeTick - point.time) + DEFINITE_TEMP
+        y = getActivationLevel(userID)
         # y = squareConvert(y,Y_AXIS_LIMIT)
         flag = True
         if REST_VISIBILITY is False and point.time + TIME_PERIOD_LIMIT < curTimeTick:                
@@ -208,9 +212,6 @@ def create_plt(target_plot, points):
                 if SUBSCRIBER_VISIBILITY:
                     subs_row.append(x)
                     subs_col.append(y)
-            elif point.time + TIME_PERIOD_LIMIT < curTimeTick:
-                old_row.append(x)
-                old_col.append(y)
             elif NORMAL_VISIBILITY:
                 recent_row.append(x)
                 recent_col.append(y)
@@ -225,7 +226,6 @@ def create_plt(target_plot, points):
 
     
     target_plot.plot(recent_row,recent_col,'o',color=mycolor.recent, markersize = 2)
-    target_plot.plot(old_row,old_col,'o',color=mycolor.old, markersize = 2)
     target_plot.plot(subs_row,subs_col,'o',color=mycolor.subscriber, markersize = 3)
     target_plot.plot(warn_row,warn_col,'o',color=mycolor.abnormal, markersize = 4)
     target_plot.plot(bad_row,bad_col,'o',color=mycolor.bad, markersize = 4)
@@ -236,8 +236,8 @@ def create_plt(target_plot, points):
         trackHistoryX.append(avgSimilarity)
         trackHistoryY.append(avgTemp)
         if SHOW_TRACKER:
-            target_plot.axhline(y=avgTemp, color='#777777', linestyle='-')
-            target_plot.axvline(x=avgSimilarity, color='#777777', linestyle='-')
+            # target_plot.axhline(y=avgTemp, color='#777777', linestyle='-')
+            # target_plot.axvline(x=avgSimilarity, color='#777777', linestyle='-')
             target_plot.plot([avgSimilarity], [avgTemp], 'o', color='#777777', markersize = 6)
 
 
@@ -289,7 +289,19 @@ def brs(curTime, prevTime):
         brsRet = 1.0 / (curTime - prevTime) 
     return brsRet
     
-    
+def getActivationLevel(userID):
+    global curTimeTick
+    result = len(chatQueue[userID])
+    calib = TIME_PERIOD_LIMIT / SLOW_RATE
+    for timeStamp in chatQueue[userID]:
+        timeGap = (curTimeTick - timeStamp)
+        value =  1. / ((timeGap + TIME_PERIOD_LIMIT) ** ALPHA)
+        result += (value * calib) ** (1./3)
+    global maxVal
+    maxVal = max([maxVal,result-len(chatQueue[userID])])
+    print(maxVal)
+    return result
+        
 
 def export_init_plt(streamer, date):
     global points
@@ -298,13 +310,6 @@ def export_init_plt(streamer, date):
     fig = Figure(figsize=(6.3,6.3), dpi=100)
     global myplot
     myplot = fig.add_subplot(111)
-    global ax
-    global annot
-    ax = plt.subplot()
-    annot = ax.annotate("", xy=(0,0), xytext=(20,20),textcoords="offset points",
-                    bbox=dict(boxstyle="round", fc="w"),
-                    arrowprops=dict(arrowstyle="->"))
-
     viewSetting(myplot)
 
     create_plt(myplot, points)
@@ -320,6 +325,7 @@ def update_plt(diff):
     consoleResult = []
     for i in range(startRef,startRef+diff):
         if i >= len(log):
+            curTimeTick += 1
             continue
         if log[i] is None:
             continue
@@ -328,8 +334,7 @@ def update_plt(diff):
         noiseVal = np.random.randn(1)[0] * Y_AXIS_MAXIMUM / 100 - Y_AXIS_MAXIMUM / 200
         if log[i]['type'] is 'CHAT':
             val = HangeulParse.getScore(log[i]['content'])
-            kmerVal = val[0]
-            completionVal = val[1] 
+            kmerVal = val[1]
             idVal = log[i]['uname']
             cutIndex = idVal.find('(')
             if cutIndex != -1:
@@ -340,6 +345,7 @@ def update_plt(diff):
             chatQueue[idVal].append(timeVal)
             while chatQueue[idVal][0] + TIME_PERIOD_LIMIT < timeVal:
                 chatQueue[idVal].popleft()
+            completionVal = 0
             result = ""
             for x in chatQueue[idVal]:
                 result += str(x) + ' '

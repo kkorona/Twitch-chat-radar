@@ -5,17 +5,20 @@ import re
 CHAT_RE_FORMAT = r'\[(?P<date>(?P<year>\d+)-(?P<month>\d+)-(?P<day>\d+) (?P<hour>\d+):(?P<minute>\d+):(?P<second>\d+))\] <(?P<auth>[\+\~\@\%\$\^\*\!\&]*)(?P<uname>(.)*)> (?P<content>(.)*)'
 TITLE_RE_FORMAT = r'\[(?P<date>(?P<year>\d+)-(?P<month>\d+)-(?P<day>\d+) (?P<hour>\d+):(?P<minute>\d+):(?P<second>\d+))\] ~(?P<title>(.)*)\((?P<category>(.)*)\)~'
 COMMAND_RE_FORMAT = r'\[(?P<date>(?P<year>\d+)-(?P<month>\d+)-(?P<day>\d+) (?P<hour>\d+):(?P<minute>\d+):(?P<second>\d+))\] (?P<command>\w+): (?P<target>\w+)(?P<attribute> \((\w+)\))?'
+INFO_RE_FORMANT = r'\[(?P<date>(?P<year>\d+)-(?P<month>\d+)-(?P<day>\d+) (?P<hour>\d+):(?P<minute>\d+):(?P<second>\d+))\] \[Info\] This room is now in slow mode. You may send messages every (?P<slowrate>\d+) seconds.'
 
-VARIOUS = ['CHAT', 'TITLE', 'COMMAND']
+VARIOUS = ['CHAT', 'TITLE', 'COMMAND', 'INFO']
 GROUPS={}
 GROUPS['CHAT'] = ('date', 'year', 'month', 'day', 'hour', 'minute', 'second', 'auth', 'uname', 'content')
 GROUPS['TITLE'] = ('date', 'year', 'month', 'day', 'hour', 'minute', 'second', 'title', 'category')
 GROUPS['COMMAND'] = ('date', 'year', 'month', 'day', 'hour', 'minute', 'second', 'command', 'target', 'attribute')
+GROUPS['INFO'] = ('date', 'year', 'month', 'day', 'hour', 'minute', 'second', 'slowrate')
 
 chatp = re.compile(CHAT_RE_FORMAT)
 titlep = re.compile(TITLE_RE_FORMAT)
 commandp = re.compile(COMMAND_RE_FORMAT)
-parseList = {'CHAT':chatp, 'TITLE':titlep, 'COMMAND':commandp}
+infop = re.compile(INFO_RE_FORMANT)
+parseList = {'CHAT':chatp, 'TITLE':titlep, 'COMMAND':commandp, 'INFO':infop}
 
 def readFile(LOG_PATH, STREAMER_TABLE, DATE):
 
@@ -59,18 +62,21 @@ def readFile(LOG_PATH, STREAMER_TABLE, DATE):
 
 def main():
     LOG_PATH = "D:\\Twitch-chat-radar\\data\\logs\\"
-    STREAMER_TABLE = ("zilioner",)
-    DATE = ("2019-01-15","2019-01-16","2019-01-17","2019-01-18","2019-01-21","2019-01-22","2019-01-23","2019-01-24","2019-01-28")
+    STREAMER_TABLE = ("mbcmlt1",)
+    DATE = ("2019-04-06",)
     result = readFile(LOG_PATH, STREAMER_TABLE, DATE)
     for key in result.keys():
         resVal = result.get(key)
         if resVal is None:
             continue
         _n = len(resVal)
-        for i in range(1,_n):
+        for i in range(1,30):
+            mres = str(i)
             if resVal[i] is not None:
-                if resVal[i]['type'] is 'CHAT':
-                    print(resVal[i]['auth'])
+                mres += resVal[i]['type']
+                if resVal[i]['type'] is 'INFO':
+                    print(resVal[i]['slowrate'])
+            print(mres)
 
 if __name__ == "__main__":
     main()

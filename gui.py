@@ -338,19 +338,19 @@ def viewInit(window):
     label.grid(row=2, column=2)
     entryList['X axis minimum'] = tk.Entry(viewFrame)
     entryList['X axis minimum'].grid(row=2, column=3)
-    entryList['X axis minimum'].insert(tk.END,"-200")
+    entryList['X axis minimum'].insert(tk.END,"0")
 
     label = tk.Label(viewFrame, text="Y axis maximum")
     label.grid(row=3, column=0)
     entryList['Y axis maximum'] = tk.Entry(viewFrame)
     entryList['Y axis maximum'].grid(row=3, column=1)
-    entryList['Y axis maximum'].insert(tk.END,"200")
+    entryList['Y axis maximum'].insert(tk.END,"30")
 
     label = tk.Label(viewFrame, text="Y axis minimum")
     label.grid(row=3, column=2)
     entryList['Y axis minimum'] = tk.Entry(viewFrame)
     entryList['Y axis minimum'].grid(row=3, column=3)
-    entryList['Y axis minimum'].insert(tk.END,"-200")
+    entryList['Y axis minimum'].insert(tk.END,"0")
 
     checkButton = tk.Checkbutton(viewFrame, text="Temporary banned user", variable=TEMP_BAN_VISIBILITY)
     checkButton.grid(row = 4, column = 0, columnspan=2, sticky=tk.W)
@@ -392,7 +392,6 @@ def radarInit(window):
     radarFrame.grid(row=0, column=1, rowspan=2, columnspan=2, sticky=tk.N+tk.E+tk.W+tk.S)
     
     global canvas
-    #result = graph_viewer.export_init_plt((tempStreamer,),(tempDate,))
     result = graph_viewer.export_init_plt((streamerName,),(logStartDate,))
     canvas = FigureCanvasTkAgg(result, master=radarFrame)
     canvas.draw()
@@ -479,6 +478,7 @@ def main():
     updateConsole("Current Log: "+graph_viewer.LOG_NAME, 'STATE')
     cnt = 0
     updateStatFrame()
+    updateConsole("Chat rate: 1 Chat per " + str(graph_viewer.SLOW_RATE) + 'sec', 'STATE')
     global unlocked
     lockEntry()
     openEntry()

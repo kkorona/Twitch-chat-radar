@@ -55,30 +55,31 @@ def count3gramComplete(tagretString):
 
 def countRunComplete(targetString):
     tokenCount = {}
-    runCount = 0
-    prev = None
     for character in targetString:
+        '''
         # print(character + "/ " + str(runCount))
         if prev is None:
             prev = character
             continue
         if character == prev:
             continue
+        '''
         tokenCount[character] = True
+        '''
         runCount += 1
         if prev == ' ':
             runCount -= 1
         prev = character
-    runCount += 1
-    return float(len(tokenCount) * runCount) / math.sqrt(float(len(targetString)))
+        '''
+    return len(tokenCount)
 
 
 def getScore(targetString):
-    targetObj = disform(targetString)
+    # targetObj = disform(targetString)
     completionRet = 0
-    kmerRet = targetObj['1mer'] + targetObj['2mer'] + targetObj['3mer']
-    completionRet = math.sqrt(len(targetString))
-    return (kmerRet,completionRet)
+    # kmerRet = targetObj['1mer'] + targetObj['2mer'] + targetObj['3mer']
+    completionRet = (countRunComplete(targetString)**1.5) * math.sqrt(float(len(targetString)))
+    return (0,completionRet)
     
 
 def disform(targetString):
