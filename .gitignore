@@ -12,3 +12,4 @@ __pycache__/
 *.lnk
 test.py
 test2.py
+vscode/

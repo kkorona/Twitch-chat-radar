@@ -5,20 +5,23 @@ import re
 CHAT_RE_FORMAT = r'\[(?P<date>(?P<year>\d+)-(?P<month>\d+)-(?P<day>\d+) (?P<hour>\d+):(?P<minute>\d+):(?P<second>\d+))\] <(?P<auth>[\+\~\@\%\$\^\*\!\&]*)(?P<uname>(.)*)> (?P<content>(.)*)'
 TITLE_RE_FORMAT = r'\[(?P<date>(?P<year>\d+)-(?P<month>\d+)-(?P<day>\d+) (?P<hour>\d+):(?P<minute>\d+):(?P<second>\d+))\] ~(?P<title>(.)*)\((?P<category>(.)*)\)~'
 COMMAND_RE_FORMAT = r'\[(?P<date>(?P<year>\d+)-(?P<month>\d+)-(?P<day>\d+) (?P<hour>\d+):(?P<minute>\d+):(?P<second>\d+))\] (?P<command>\w+): (?P<target>\w+)(?P<attribute> \((\w+)\))?'
-INFO_RE_FORMANT = r'\[(?P<date>(?P<year>\d+)-(?P<month>\d+)-(?P<day>\d+) (?P<hour>\d+):(?P<minute>\d+):(?P<second>\d+))\] \[Info\] This room is now in slow mode. You may send messages every (?P<slowrate>\d+) seconds.'
+INFO_RE_FORMAT = r'\[(?P<date>(?P<year>\d+)-(?P<month>\d+)-(?P<day>\d+) (?P<hour>\d+):(?P<minute>\d+):(?P<second>\d+))\] \[Info\] This room is now in slow mode. You may send messages every (?P<slowrate>\d+) seconds.'
+MELTSLOW_RE_FORMAT = r'\[(?P<date>(?P<year>\d+)-(?P<month>\d+)-(?P<day>\d+) (?P<hour>\d+):(?P<minute>\d+):(?P<second>\d+))\] [Info] This room is no longer in slow mode.'
 
-VARIOUS = ['CHAT', 'TITLE', 'COMMAND', 'INFO']
+VARIOUS = ['CHAT', 'TITLE', 'COMMAND', 'INFO', 'MELTSLOW']
 GROUPS={}
 GROUPS['CHAT'] = ('date', 'year', 'month', 'day', 'hour', 'minute', 'second', 'auth', 'uname', 'content')
 GROUPS['TITLE'] = ('date', 'year', 'month', 'day', 'hour', 'minute', 'second', 'title', 'category')
 GROUPS['COMMAND'] = ('date', 'year', 'month', 'day', 'hour', 'minute', 'second', 'command', 'target', 'attribute')
 GROUPS['INFO'] = ('date', 'year', 'month', 'day', 'hour', 'minute', 'second', 'slowrate')
+GROUPS['MELTSLOW'] = ('date', 'year', 'month', 'day', 'hour', 'minute', 'second')
 
 chatp = re.compile(CHAT_RE_FORMAT)
 titlep = re.compile(TITLE_RE_FORMAT)
 commandp = re.compile(COMMAND_RE_FORMAT)
-infop = re.compile(INFO_RE_FORMANT)
-parseList = {'CHAT':chatp, 'TITLE':titlep, 'COMMAND':commandp, 'INFO':infop}
+infop = re.compile(INFO_RE_FORMAT)
+meltslowp = re.compile(MELTSLOW_RE_FORMAT)
+parseList = {'CHAT':chatp, 'TITLE':titlep, 'COMMAND':commandp, 'INFO':infop, 'MELTSLOW':meltslowp}
 
 def readFile(LOG_PATH, STREAMER_TABLE, DATE):
 

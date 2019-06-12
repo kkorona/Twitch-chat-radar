@@ -22,9 +22,9 @@ LOG_PATH = "D:\\Twitch-chat-radar\\data\\logs\\"
 LOG_NAME = None
 SCORE_WARNING_LIMIT = 0
 BAN_WARNING_LIMIT = 0
-X_AXIS_MAXIMUM = 200
+X_AXIS_MAXIMUM = 400
 X_AXIS_MINIMUM = 0
-Y_AXIS_MAXIMUM = 200
+Y_AXIS_MAXIMUM = 300
 Y_AXIS_MINIMUM = 0
 MIN_SHOW_FREQUENCY = 0
 MAX_HOLD_FREQUENCY = 10
@@ -41,8 +41,6 @@ fig = None
 Color = namedtuple("Color",("recent", "old", "abnormal", "bad", "subscriber"))
 mycolor = Color('#5786D3', '#666699','#FF7F00', '#FF2222', '#BFFF00')
 
-plt.style.use('dark_background')
-
 chatData = None
 
 ax = None
@@ -58,6 +56,7 @@ permaBanList = set()
 trackHistoryX = []
 trackHistoryY = []
 chatQueue = defaultdict(deque)
+kmerQueue = defaultdict(deque)
 currentTime = None
 currentDate = None
 curTimeTick = 0
@@ -83,6 +82,8 @@ SHOW_TRACKER = False
 
 TIME_WEIGHT = {"year":32140800, "month":2678400, "day":86400, "hour":3600, "minute":60, "second":1}
 TIME_KEY_LIST=["year","month","day","hour","minute","second"]
+
+plt.style.use('dark_background')
 
 def int2HexStr(x):
     if x > 255:
@@ -133,6 +134,7 @@ def init_points(streamer, date):
     global END_TIME
     global NUMBER_OF_CHAT
     global startRef
+    global SLOW_RATE
     LOG_NAME = log_name
     log = result.get(log_name)
     _n = len(log)
@@ -140,8 +142,10 @@ def init_points(streamer, date):
         if log[i] is None:
             continue
         if log[i]['type'] == 'INFO':
-            global SLOW_RATE
             SLOW_RATE = int(log[i]['slowrate'])
+            continue
+        if log[i]['type'] == 'MELTSLOW':
+            SLOW_RATE = 1
             continue
         if log[i]['type'] != 'CHAT':
             continue
@@ -161,7 +165,8 @@ def init_points(streamer, date):
     return points
 
 
-def create_plt(target_plot, points):
+def create_plt(target_plot):
+    global points
     recent_row = []
     recent_col = []
     warn_row = []
@@ -177,7 +182,7 @@ def create_plt(target_plot, points):
 
     for userID in points:
         point = points.get(userID)
-        x = point.kmerScore
+        x = float(point.kmerScore) / len(chatQueue[userID])
         # x = squareConvert(x,X_AXIS_LIMIT)
         y = getActivationLevel(userID)
         # y = squareConvert(y,Y_AXIS_LIMIT)
@@ -199,7 +204,10 @@ def create_plt(target_plot, points):
                 x = X_AXIS_MINIMUM * 0.99
             if y < Y_AXIS_MINIMUM * 0.99:
                 y = Y_AXIS_MINIMUM * 0.99
-
+            
+            #if x > 200 and userID in banList:
+            #    print(userID)
+                
             #Show personal tracks
             if userID in permaBanList:
                 bad_row.append(x)
@@ -215,6 +223,7 @@ def create_plt(target_plot, points):
             elif NORMAL_VISIBILITY:
                 recent_row.append(x)
                 recent_col.append(y)
+
     
     if SHOW_TRACK_HISTORY and len(trackHistoryX) >= TRACK_HISTORY_SIZE:
         st = len(trackHistoryX) - TRACK_HISTORY_SIZE
@@ -257,19 +266,26 @@ def viewSetting(target_plot):
 
 
     # Changing color of axes
-    target_plot.spines['left'].set_color('g')
-    target_plot.spines['bottom'].set_color('g')
+    target_plot.spines['left'].set_color('w')
+    target_plot.spines['bottom'].set_color('w')
 
-    target_plot.tick_params(axis='x', colors='w')
-    target_plot.tick_params(axis='y', colors='w')
+    target_plot.tick_params(axis='x')
+    target_plot.tick_params(axis='y')
 
     # Show ticks in the left and lower axes only
     target_plot.xaxis.set_ticks_position('bottom')
     target_plot.yaxis.set_ticks_position('left')
 
+    # Labeling
+    target_plot.xaxis.set_label_text('M(u,t)',color='w')
+    target_plot.yaxis.set_label_text('F(u,t)',color='w')
+
     # Setting axe range
     target_plot.set_xlim(X_AXIS_MINIMUM,X_AXIS_MAXIMUM)
     target_plot.set_ylim(Y_AXIS_MINIMUM,Y_AXIS_MAXIMUM)
+
+    # Grid
+    target_plot.grid(color='xkcd:grey')
 
     '''
     # draw circle area
@@ -291,15 +307,20 @@ def brs(curTime, prevTime):
     
 def getActivationLevel(userID):
     global curTimeTick
+    SUM_OF_ACTIVATION_LEVEL = 88.18549843496898
     result = len(chatQueue[userID])
     calib = TIME_PERIOD_LIMIT / SLOW_RATE
     for timeStamp in chatQueue[userID]:
         timeGap = (curTimeTick - timeStamp)
-        value =  1. / ((timeGap + TIME_PERIOD_LIMIT) ** ALPHA)
-        result += (value * calib) ** (1./3)
+        if timeGap > TIME_PERIOD_LIMIT:
+            continue
+        value = (1./(3.0+float(timeGap/60)))/SUM_OF_ACTIVATION_LEVEL * calib
+        result += value
+    '''
     global maxVal
     maxVal = max([maxVal,result-len(chatQueue[userID])])
     print(maxVal)
+    '''
     return result
         
 
@@ -312,7 +333,9 @@ def export_init_plt(streamer, date):
     myplot = fig.add_subplot(111)
     viewSetting(myplot)
 
-    create_plt(myplot, points)
+    create_plt(myplot)
+    # fig.patch.set_facecolor('xkcd:light gray')
+    # myplot.set_facecolor('xkcd:light gray')
     return fig
 
 def update_plt(diff):
@@ -322,6 +345,7 @@ def update_plt(diff):
     global curTimeTick
     global currentTime
     global currentDate
+    global SLOW_RATE
     consoleResult = []
     for i in range(startRef,startRef+diff):
         if i >= len(log):
@@ -343,8 +367,11 @@ def update_plt(diff):
                     subsList.add(idVal)
             timeVal = convertTime(log[i])
             chatQueue[idVal].append(timeVal)
+            kmerQueue[idVal].append(kmerVal)
             while chatQueue[idVal][0] + TIME_PERIOD_LIMIT < timeVal:
                 chatQueue[idVal].popleft()
+                points[idVal] = points[idVal]._replace(kmerScore = points[idVal].kmerScore - kmerQueue[idVal][0])
+                kmerQueue[idVal].popleft()
             completionVal = 0
             result = ""
             for x in chatQueue[idVal]:
@@ -353,11 +380,11 @@ def update_plt(diff):
             lastUserChat[idVal] = log[i]['content']
             curTimeTick = timeVal
             if not idVal in points:
-                points[idVal] = Point(kmerScore=kmerVal, completionScore=completionVal - DEFINITE_TEMP, id=idVal, time=timeVal, freq=1, noise = noiseVal)
+                points[idVal] = Point(kmerScore=kmerVal, completionScore=completionVal, id=idVal, time=timeVal, freq=1, noise = noiseVal)
             else:
                 oldPoint = points.get(idVal)
                 freqVal = oldPoint.freq+1
-                kmerVal = kmerVal*(1-brs(curTimeTick, oldPoint.time)) + oldPoint.kmerScore * brs(curTimeTick, oldPoint.time)
+                kmerVal = oldPoint.kmerScore + kmerVal
                 if oldPoint.completionScore > 0:
                     completionVal += oldPoint.completionScore
                 newPoint = Point(kmerScore=kmerVal, completionScore=completionVal, id=idVal, time=timeVal, freq=freqVal, noise=noiseVal)
@@ -374,7 +401,7 @@ def update_plt(diff):
                     points[idVal] = Point(kmerScore=0, completionScore=0, time=timeVal, id=idVal, freq=0, noise=noiseVal)
                 oldPoint = points.get(idVal)
                 kmerVal = oldPoint.kmerScore
-                completionVal = oldPoint.completionScore 
+                completionVal = getActivationLevel(idVal)
                 if log[i]['attribute'] is None:
                     permaBanList.add(idVal)
                     logContentVal = 'PERMA' + logContentVal
@@ -383,7 +410,7 @@ def update_plt(diff):
                     banList.add(idVal)
                     logContentVal += "("+log[i]['attribute']+")"
                     logTagVal = 'BAN'
-                logContentVal += '(' + ('%.2f' % kmerVal) + ',' + ('%.2f' % completionVal) + ')'
+                logContentVal += '(' + ('%.2f' % (float(kmerVal)/len(chatQueue[idVal]))) + ',' + ('%.2f' % completionVal) + ')'
                 consoleResult.append((logContentVal,logTagVal))
                 logTagVal = 'BANCONTENTS'
                 logContentVal = "content: \"" + lastUserChat[idVal] + "\""
@@ -391,7 +418,13 @@ def update_plt(diff):
                 freqVal = oldPoint.freq + 1
                 newPoint = Point(kmerScore=kmerVal, completionScore=completionVal, id = idVal, time=timeVal, freq=freqVal, noise=noiseVal)
                 points[idVal] = newPoint
-                
+
+        elif log[i]['type'] == 'INFO':
+            SLOW_RATE = int(log[i]['slowrate'])
+        
+        elif log[i]['type'] == 'MELTSLOW':
+            SLOW_RATE = 1
+
         lastLogIndex = i
                 
     lastLog = log[lastLogIndex]
@@ -402,5 +435,5 @@ def update_plt(diff):
     global myplot
     myplot.clear()
     viewSetting(myplot)
-    create_plt(myplot, points)
+    create_plt(myplot)
     return consoleResult
